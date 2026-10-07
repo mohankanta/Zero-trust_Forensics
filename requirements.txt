@@ -1,2 +1,8 @@
-streamlit
+﻿streamlit
 firebase-admin
+scapy
+pandas
+pefile
+Pillow
+exifread
+requests

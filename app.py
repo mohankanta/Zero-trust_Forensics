@@ -41,11 +41,15 @@ VIRUSTOTAL_API_KEY = "e16b303c571b8a4d9e73d40eaafc9c4e26551146d5d799f6329d206f68
 
 # ── Initialize Firebase ────────────────────────────────────────────────────────
 db = None
-if FIREBASE_INSTALLED and os.path.exists(FIREBASE_KEY):
+if FIREBASE_INSTALLED:
     if not firebase_admin._apps:
         try:
-            cred = credentials.Certificate(FIREBASE_KEY)
-            firebase_admin.initialize_app(cred)
+            if "firebase" in st.secrets:
+                cred = credentials.Certificate(dict(st.secrets["firebase"]))
+                firebase_admin.initialize_app(cred)
+            elif os.path.exists(FIREBASE_KEY):
+                cred = credentials.Certificate(FIREBASE_KEY)
+                firebase_admin.initialize_app(cred)
         except Exception as e:
             st.error(f"Firebase Init Error: {e}")
     if firebase_admin._apps:
@@ -745,12 +749,13 @@ def tool_sandbox():
     col_up, col_gen = st.columns([3, 1])
     with col_gen:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Generate Safe Sample (.exe)", use_container_width=True):
-            import shutil, os
-            sample_path = r"C:\Users\Chennakeshavulu\.gemini\antigravity\scratch\zero_trust_workspace\suspicious_sample.exe"
-            # Copy a benign Windows executable for safe parsing testing
-            shutil.copy(r"C:\Windows\System32\find.exe", sample_path)
-            st.success(f"Sample file generated: {sample_path}")
+        import os
+        try:
+            with open(r"C:\Windows\System32\find.exe", "rb") as f:
+                exe_bytes = f.read()
+            st.download_button("📥 Download Sample .exe", data=exe_bytes, file_name="suspicious_sample.exe", mime="application/x-msdownload", use_container_width=True)
+        except Exception:
+            st.error("Could not read system file for sample.")
             
     with col_up:
         uploaded_file = st.file_uploader("Upload Windows Executable (.exe, .dll)", type=['exe','dll','sys'])
@@ -764,7 +769,7 @@ def tool_sandbox():
             time.sleep(1) # Visual delay for realism
             try:
                 # Load the uploaded bytes into pefile
-                pe = pefile.PE(data=uploaded_file.getbuffer())
+                pe = pefile.PE(data=uploaded_file.getvalue())
                 
                 # --- Basic Info ---
                 st.markdown("### 📊 PE Header Information")
@@ -838,15 +843,9 @@ def tool_volatility():
     col_up, col_gen = st.columns([3, 1])
     with col_gen:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Generate Sample RAM Dump", use_container_width=True):
-            import os
-            sample_path = r"C:\Users\Chennakeshavulu\.gemini\antigravity\scratch\zero_trust_workspace\suspect_memory.raw"
-            with open(sample_path, "wb") as f:
-                # Write some binary junk to simulate a tiny RAM dump
-                f.write(os.urandom(1024 * 50))
-                f.write(b"VOL_MARKER_WIN10_x64")
-                f.write(os.urandom(1024 * 50))
-            st.success(f"Sample 100KB RAM Dump created at: {sample_path}")
+        import os
+        sample_bytes = os.urandom(1024 * 50) + b"VOL_MARKER_WIN10_x64" + os.urandom(1024 * 50)
+        st.download_button("📥 Download Sample .raw", data=sample_bytes, file_name="suspect_memory.raw", mime="application/octet-stream", use_container_width=True)
             
     with col_up:
         uploaded_ram = st.file_uploader("Upload RAM Dump File", type=["raw", "mem", "vmem"], key="ram_upload")
@@ -926,9 +925,7 @@ def tool_cellebrite():
     col_up, col_gen = st.columns([3, 1])
     with col_gen:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Generate Sample XML Dump", use_container_width=True):
-            import os
-            sample_xml = """<?xml version="1.0" encoding="UTF-8"?>
+        sample_xml = """<?xml version="1.0" encoding="UTF-8"?>
 <ufed_report>
     <metadata>
         <device>Apple iPhone 14 Pro Max</device>
@@ -951,10 +948,7 @@ def tool_cellebrite():
         <message><folder>Deleted</folder><sender>+1-555-9999</sender><timestamp>2026-09-29 20:10:00</timestamp><body>Understood. Burn this phone after the drop.</body></message>
     </messages>
 </ufed_report>"""
-            sample_path = r"C:\Users\Chennakeshavulu\.gemini\antigravity\scratch\zero_trust_workspace\Suspect_iPhone_Dump.xml"
-            with open(sample_path, "w", encoding="utf-8") as f:
-                f.write(sample_xml)
-            st.success(f"✅ Sample Cellebrite Dump created at: {sample_path}")
+        st.download_button("📥 Download Sample XML", data=sample_xml, file_name="Suspect_iPhone_Dump.xml", mime="application/xml", use_container_width=True)
             
     with col_up:
         uploaded_file = st.file_uploader("Upload Cellebrite UFED XML Report", type=["xml"], key="ufed_xml")
@@ -1294,18 +1288,13 @@ def tool_autopsy():
             col_up, col_gen = st.columns([3, 1])
             with col_gen:
                 st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("Generate Sample Timeline", use_container_width=True):
-                    import os
-                    sample_csv = """Filename,File Path,Size (Bytes),Created Time,Modified Time,Accessed Time,Status
+                sample_csv = """Filename,File Path,Size (Bytes),Created Time,Modified Time,Accessed Time,Status
 secret_plans.pdf,C:\\Users\\Suspect\\Documents\\,45000,2026-09-28 10:00:00,2026-09-28 10:05:00,2026-09-28 10:05:00,Allocated
 burner_contacts.xlsx,C:\\Users\\Suspect\\Desktop\\,12000,2026-09-29 14:00:00,2026-09-29 14:30:00,2026-09-29 14:30:00,Deleted
 browser_history.sqlite,C:\\Users\\Suspect\\AppData\\Local\\,1048576,2026-01-15 08:00:00,2026-09-30 09:00:00,2026-09-30 09:00:00,Allocated
 IMG_4921.jpg,C:\\Users\\Suspect\\Pictures\\,3500000,2026-09-29 18:00:00,2026-09-29 18:00:00,2026-09-29 18:00:00,Deleted
 system.dll,C:\\Windows\\System32\\,999999,2024-01-01 00:00:00,2024-01-01 00:00:00,2026-09-30 11:00:00,Allocated"""
-                    sample_path = r"C:\Users\Chennakeshavulu\.gemini\antigravity\scratch\zero_trust_workspace\Suspect_Timeline.csv"
-                    with open(sample_path, "w", encoding="utf-8") as f:
-                        f.write(sample_csv)
-                    st.success(f"✅ Sample Timeline created at: {sample_path}")
+                st.download_button("📥 Download Sample CSV", data=sample_csv, file_name="mft_timeline.csv", mime="text/csv", use_container_width=True)
             
             with col_up:
                 timeline_file = st.file_uploader("Upload Forensic Timeline (.csv)", type=["csv"], key="timeline_upload")
@@ -1533,126 +1522,85 @@ def tool_virustotal():
 def tool_wireshark():
     log_action("Opened Tool: Wireshark (Web-Native)")
     back_button()
-    st.markdown('<div class="tool-header"><div class="tool-title">🦈 Wireshark — Network Analyzer</div><div class="tool-sub">Live Packet Sniffing | PCAP Parsing | Powered by Scapy</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="tool-header"><div class="tool-title">🦈 Wireshark — Network Analyzer</div><div class="tool-sub">PCAP Parsing | Powered by Scapy</div></div>', unsafe_allow_html=True)
     
-    tab1, tab2 = st.tabs(["📂 PCAP File Analyzer", "📡 Live Network Sniffer"])
+    st.markdown("### Backend PCAP Analyzer")
+    st.write("Upload a raw `.pcap` capture file. The backend server will mathematically parse the network packets and extract the top communicating IP addresses.")
     
-    with tab1:
-        st.markdown("### Backend PCAP Analyzer")
-        st.write("Upload a raw `.pcap` capture file. The backend server will use Python's **Scapy** library to parse the network packets and extract the top communicating IP addresses, simulating a Wireshark analysis.")
+    col_up, col_gen = st.columns([3, 1])
+    with col_gen:
+        st.markdown("<br>", unsafe_allow_html=True)
+        try:
+            from scapy.all import IP, TCP, ICMP, wrpcap
+            import tempfile, os
+            pkts = [
+                IP(src="192.168.1.15", dst="8.8.8.8")/ICMP(),
+                IP(src="8.8.8.8", dst="192.168.1.15")/ICMP(),
+                IP(src="192.168.1.15", dst="185.112.44.19")/TCP(dport=80, flags="S"),
+                IP(src="185.112.44.19", dst="192.168.1.15")/TCP(sport=80, flags="SA"),
+                IP(src="192.168.1.15", dst="185.112.44.19")/TCP(dport=80, flags="A") / b"GET /malware.exe HTTP/1.1\r\n\r\n"
+            ]
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pcap") as tmp:
+                temp_path = tmp.name
+            wrpcap(temp_path, pkts)
+            with open(temp_path, "rb") as f:
+                pcap_bytes = f.read()
+            os.remove(temp_path)
+            st.download_button("📥 Download Sample PCAP", data=pcap_bytes, file_name="Suspicious_Traffic.pcap", mime="application/vnd.tcpdump.pcap", use_container_width=True)
+        except Exception as e:
+            st.error(f"Error generating PCAP: {e}")
+                
+    with col_up:
+        pcap_file = st.file_uploader("Upload Network Capture (.pcap)", type=["pcap"])
+    
+    if pcap_file and st.button("▶ Analyze PCAP File", use_container_width=True, type="primary"):
+        import struct
+        from collections import Counter
         
-        col_up, col_gen = st.columns([3, 1])
-        with col_gen:
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Generate Sample PCAP", use_container_width=True):
-                try:
-                    from scapy.all import IP, TCP, ICMP, wrpcap
-                    pkts = [
-                        IP(src="192.168.1.15", dst="8.8.8.8")/ICMP(),
-                        IP(src="8.8.8.8", dst="192.168.1.15")/ICMP(),
-                        IP(src="192.168.1.15", dst="185.112.44.19")/TCP(dport=80, flags="S"),
-                        IP(src="185.112.44.19", dst="192.168.1.15")/TCP(sport=80, flags="SA"),
-                        IP(src="192.168.1.15", dst="185.112.44.19")/TCP(dport=80, flags="A") / b"GET /malware.exe HTTP/1.1\r\n\r\n"
-                    ]
-                    sample_path = r"C:\Users\Chennakeshavulu\.gemini\antigravity\scratch\zero_trust_workspace\Suspicious_Traffic.pcap"
-                    wrpcap(sample_path, pkts)
-                    st.success(f"✅ Sample PCAP generated at: {sample_path}")
-                except Exception as e:
-                    st.error(f"Error generating PCAP: {e}")
-                    
-        with col_up:
-            pcap_file = st.file_uploader("Upload Network Capture (.pcap)", type=["pcap"])
+        file_bytes = pcap_file.read()
         
-        if pcap_file and st.button("▶ Analyze PCAP File", use_container_width=True, type="primary"):
-            import struct
-            from collections import Counter
-            
-            file_bytes = pcap_file.read()
-            
-            with st.spinner("Parsing packets on the backend server..."):
-                if len(file_bytes) < 24:
-                    st.error("Invalid PCAP file.")
-                else:
-                    magic = struct.unpack('<I', file_bytes[:4])[0]
-                    endian = '<' if magic == 0xa1b2c3d4 else '>'
+        with st.spinner("Parsing packets on the backend server..."):
+            if len(file_bytes) < 24:
+                st.error("Invalid PCAP file.")
+            else:
+                magic = struct.unpack('<I', file_bytes[:4])[0]
+                endian = '<' if magic == 0xa1b2c3d4 else '>'
+                
+                offset = 24
+                packets = []
+                
+                while offset < len(file_bytes):
+                    if offset + 16 > len(file_bytes): break
+                    hdr = struct.unpack(f'{endian}IIII', file_bytes[offset:offset+16])
+                    incl_len = hdr[2]
+                    offset += 16
                     
-                    offset = 24
-                    packets = []
+                    if offset + incl_len > len(file_bytes): break
+                    packet_data = file_bytes[offset:offset+incl_len]
+                    offset += incl_len
                     
-                    while offset < len(file_bytes):
-                        if offset + 16 > len(file_bytes): break
-                        hdr = struct.unpack(f'{endian}IIII', file_bytes[offset:offset+16])
-                        incl_len = hdr[2]
-                        offset += 16
+                    if len(packet_data) >= 34:
+                        ethertype = struct.unpack('>H', packet_data[12:14])[0]
+                        if ethertype == 0x0800: # IPv4
+                            src_ip = ".".join(map(str, packet_data[26:30]))
+                            dst_ip = ".".join(map(str, packet_data[30:34]))
+                            proto = packet_data[23]
+                            p_name = "TCP" if proto == 6 else "UDP" if proto == 17 else "ICMP" if proto == 1 else str(proto)
+                            packets.append((src_ip, dst_ip, p_name))
+                
+                st.success(f"✅ Successfully parsed {len(packets)} IPv4 packets!")
+                
+                if packets:
+                    st.subheader("Top Communicating IP Addresses")
+                    ip_counter = Counter([p[0] for p in packets] + [p[1] for p in packets])
+                    
+                    col1, col2 = st.columns(2)
+                    for i, (ip, count) in enumerate(ip_counter.most_common(10)):
+                        if i % 2 == 0: col1.markdown(f"- `{ip}` ({count} packets)")
+                        else: col2.markdown(f"- `{ip}` ({count} packets)")
                         
-                        if offset + incl_len > len(file_bytes): break
-                        packet_data = file_bytes[offset:offset+incl_len]
-                        offset += incl_len
-                        
-                        if len(packet_data) >= 34:
-                            ethertype = struct.unpack('>H', packet_data[12:14])[0]
-                            if ethertype == 0x0800: # IPv4
-                                src_ip = ".".join(map(str, packet_data[26:30]))
-                                dst_ip = ".".join(map(str, packet_data[30:34]))
-                                proto = packet_data[23]
-                                p_name = "TCP" if proto == 6 else "UDP" if proto == 17 else "ICMP" if proto == 1 else str(proto)
-                                packets.append((src_ip, dst_ip, p_name))
-                    
-                    st.success(f"✅ Successfully parsed {len(packets)} IPv4 packets!")
-                    
-                    if packets:
-                        st.subheader("Top Communicating IP Addresses")
-                        ip_counter = Counter([p[0] for p in packets] + [p[1] for p in packets])
-                        
-                        col1, col2 = st.columns(2)
-                        for i, (ip, count) in enumerate(ip_counter.most_common(10)):
-                            if i % 2 == 0: col1.markdown(f"- `{ip}` ({count} packets)")
-                            else: col2.markdown(f"- `{ip}` ({count} packets)")
-                            
-                        log_tool_to_coc("Wireshark (Backend Analyzer)", f"Parsed {pcap_file.name}: {len(packets)} packets. Top IP: {ip_counter.most_common(1)[0][0]}")
-                        log_action(f"Parsed PCAP: {pcap_file.name}")
-
-    with tab2:
-        st.markdown("### 📡 Live Interface Capture")
-        st.write("Run a live packet capture directly on your computer's primary Wi-Fi or Ethernet network interface (Promiscuous Mode).")
-        
-        if st.button("▶ Start Live Network Capture (Sniff 20 Packets)", use_container_width=True, type="primary"):
-            import pandas as pd
-            try:
-                from scapy.all import sniff, IP, TCP, UDP
-                with st.spinner("Listening on live network interface... waiting for 20 packets..."):
-                    # This tells the server to physically listen to the Wi-Fi/Ethernet card for live traffic
-                    captured = sniff(count=20, timeout=15)
-                    
-                    if len(captured) == 0:
-                        st.warning("No packets captured. The network interface might be idle.")
-                    else:
-                        st.success(f"✅ Successfully intercepted {len(captured)} live packets from your network card!")
-                        packet_data = []
-                        for pkt in captured:
-                            if IP in pkt:
-                                proto = "TCP" if TCP in pkt else "UDP" if UDP in pkt else "Other"
-                                packet_data.append({
-                                    "Source IP": pkt[IP].src,
-                                    "Destination IP": pkt[IP].dst,
-                                    "Protocol": proto,
-                                    "Length (Bytes)": len(pkt)
-                                })
-                        
-                        if packet_data:
-                            st.dataframe(pd.DataFrame(packet_data), hide_index=True, use_container_width=True)
-                            log_action(f"Wireshark Live Sniff: Intercepted {len(packet_data)} live packets")
-                            log_tool_to_coc("Wireshark (Live Sniffer)", f"Intercepted {len(packet_data)} live packets directly from the host network interface.")
-                        else:
-                            st.info("Captured packets, but none were standard IPv4 traffic.")
-                            
-            except PermissionError:
-                st.error("❌ **Permission Denied:** Capturing live network traffic requires Administrator/Root privileges.")
-            except ImportError:
-                st.error("❌ Scapy is not installed. Run `pip install scapy`.")
-            except Exception as e:
-                st.error(f"❌ **Sniffing Failed:** {e}")
-                st.info("💡 **Note:** To sniff live traffic on Windows, you must have the **Npcap** or **WinPcap** driver installed (it usually comes with the real Wireshark app).")
+                    log_tool_to_coc("Wireshark (Backend Analyzer)", f"Parsed {pcap_file.name}: {len(packets)} packets. Top IP: {ip_counter.most_common(1)[0][0]}")
+                    log_action(f"Parsed PCAP: {pcap_file.name}")
 
 def tool_weblog():
     log_action("Opened Tool: Web Log Analyzer")
@@ -1663,25 +1611,22 @@ def tool_weblog():
     col_up, col_gen = st.columns([3, 1])
     with col_gen:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Generate Sample Log", use_container_width=True):
-            sample_log = (
-                '192.168.1.5 - - [10/Oct/2026:13:55:36 -0700] "GET /index.html HTTP/1.1" 200 2326\n'
-                '10.0.0.42 - - [10/Oct/2026:13:56:11 -0700] "GET /login.php HTTP/1.1" 200 1520\n'
-                '45.22.19.11 - - [10/Oct/2026:13:57:02 -0700] "GET /admin/dashboard.php?user=admin\' OR \'1\'=\'1 HTTP/1.1" 403 543\n'
-                '45.22.19.11 - - [10/Oct/2026:13:57:05 -0700] "GET /admin/dashboard.php?user=admin\' UNION SELECT password FROM users-- HTTP/1.1" 200 1204\n'
-                '192.168.1.5 - - [10/Oct/2026:13:58:22 -0700] "GET /contact.php HTTP/1.1" 200 892\n'
-                '114.55.20.19 - - [10/Oct/2026:14:01:14 -0700] "POST /api/search?q=<script>alert(1)</script> HTTP/1.1" 200 442\n'
-                '114.55.20.19 - - [10/Oct/2026:14:01:15 -0700] "POST /api/search?q=../../../../etc/passwd HTTP/1.1" 404 122\n'
-                '10.0.0.42 - - [10/Oct/2026:14:05:00 -0700] "GET /logout.php HTTP/1.1" 302 0\n'
-            )
-            with open(os.path.join(UPLOADS_DIR, "access.log"), "w") as f:
-                f.write(sample_log)
-            st.success("Generated `access.log`!")
+        sample_log = (
+            '192.168.1.5 - - [10/Oct/2026:13:55:36 -0700] "GET /index.html HTTP/1.1" 200 2326\n'
+            '10.0.0.42 - - [10/Oct/2026:13:56:11 -0700] "GET /login.php HTTP/1.1" 200 1520\n'
+            '45.22.19.11 - - [10/Oct/2026:13:57:02 -0700] "GET /admin/dashboard.php?user=admin\' OR \'1\'=\'1 HTTP/1.1" 403 543\n'
+            '45.22.19.11 - - [10/Oct/2026:13:57:05 -0700] "GET /admin/dashboard.php?user=admin\' UNION SELECT password FROM users-- HTTP/1.1" 200 1204\n'
+            '192.168.1.5 - - [10/Oct/2026:13:58:22 -0700] "GET /contact.php HTTP/1.1" 200 892\n'
+            '114.55.20.19 - - [10/Oct/2026:14:01:14 -0700] "POST /api/search?q=<script>alert(1)</script> HTTP/1.1" 200 442\n'
+            '114.55.20.19 - - [10/Oct/2026:14:01:15 -0700] "POST /api/search?q=../../../../etc/passwd HTTP/1.1" 404 122\n'
+            '10.0.0.42 - - [10/Oct/2026:14:05:00 -0700] "GET /logout.php HTTP/1.1" 302 0\n'
+        )
+        st.download_button("📥 Download Sample access.log", data=sample_log, file_name="access.log", mime="text/plain", use_container_width=True)
             
     with col_up:
         uploaded_file = st.file_uploader("Upload access.log (Apache/Nginx format)", type=["log", "txt"])
         
-    if uploaded_file or os.path.exists(os.path.join(UPLOADS_DIR, "access.log")):
+    if uploaded_file:
         if st.button("Parse Web Logs", type="primary"):
             st.info("Parsing log file with Regex Engine...")
             import re

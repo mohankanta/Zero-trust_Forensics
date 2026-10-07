@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ufed_report>
+    <metadata>
+        <device>Apple iPhone 14 Pro Max</device>
+        <extraction_type>Advanced Logical</extraction_type>
+        <timestamp>2026-09-30T10:00:00</timestamp>
+    </metadata>
+    <contacts>
+        <contact><name>John Doe (Boss)</name><phone>+1-555-0101</phone></contact>
+        <contact><name>Shady Supplier</name><phone>+1-555-9999</phone></contact>
+        <contact><name>Burner Phone</name><phone>+1-555-0000</phone></contact>
+    </contacts>
+    <calls>
+        <call><type>Outgoing</type><number>+1-555-9999</number><duration>120</duration><time>2026-09-29 18:30:00</time></call>
+        <call><type>Incoming</type><number>+1-555-0101</number><duration>45</duration><time>2026-09-29 19:15:00</time></call>
+        <call><type>Missed</type><number>+1-555-0000</number><duration>0</duration><time>2026-09-29 23:45:00</time></call>
+    </calls>
+    <messages>
+        <message><folder>Inbox</folder><sender>+1-555-9999</sender><timestamp>2026-09-29 20:00:00</timestamp><body>Is the package ready?</body></message>
+        <message><folder>Sent</folder><receiver>+1-555-9999</receiver><timestamp>2026-09-29 20:05:00</timestamp><body>Yes, bring the cash. Location sent.</body></message>
+        <message><folder>Deleted</folder><sender>+1-555-9999</sender><timestamp>2026-09-29 20:10:00</timestamp><body>Understood. Burn this phone after the drop.</body></message>
+    </messages>
+</ufed_report>

@@ -1,0 +1,7 @@
+# Ignore database and secret files
+users.json
+firebase_key.json
+__pycache__/
+
+complaints.json
+.streamlit/secrets.toml

@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<issues burpVersion="2023.10.3">
+    <issue>
+        <serialNumber>859302194</serialNumber>
+        <type>1049088</type>
+        <name>SQL injection</name>
+        <host ip="10.0.12.55">http://bank.streamlit.local</host>
+        <path>/api/v1/auth/login</path>
+        <location><![CDATA[username parameter]]></location>
+        <severity>High</severity>
+        <confidence>Certain</confidence>
+        <issueBackground><![CDATA[SQL injection vulnerabilities arise when user-controllable data is incorporated into database queries without proper escaping.]]></issueBackground>
+        <issueDetail><![CDATA[The <b>username</b> parameter appears to be vulnerable to SQL injection. The payload <i>admin' OR 1=1--</i> was submitted and successfully bypassed authentication.]]></issueDetail>
+    </issue>
+    <issue>
+        <serialNumber>859302195</serialNumber>
+        <type>2097152</type>
+        <name>Cross-site scripting (reflected)</name>
+        <host ip="10.0.12.55">http://bank.streamlit.local</host>
+        <path>/search</path>
+        <location><![CDATA[q parameter]]></location>
+        <severity>High</severity>
+        <confidence>Firm</confidence>
+        <issueBackground><![CDATA[Reflected XSS arises when an application receives data in an HTTP request and includes that data within the immediate response in an unsafe way.]]></issueBackground>
+        <issueDetail><![CDATA[The <b>q</b> parameter was submitted with the value <i>&lt;script&gt;alert(1)&lt;/script&gt;</i>. This input was echoed unmodified in the response.]]></issueDetail>
+    </issue>
+    <issue>
+        <serialNumber>859302196</serialNumber>
+        <type>5242880</type>
+        <name>Strict transport security not enforced</name>
+        <host ip="10.0.12.55">http://bank.streamlit.local</host>
+        <path>/</path>
+        <location><![CDATA[HTTP Response Header]]></location>
+        <severity>Low</severity>
+        <confidence>Certain</confidence>
+        <issueBackground><![CDATA[The application fails to prevent users from connecting to it over unencrypted connections.]]></issueBackground>
+        <issueDetail><![CDATA[The application does not enforce HTTP Strict Transport Security (HSTS).]]></issueDetail>
+    </issue>
+    <issue>
+        <serialNumber>859302197</serialNumber>
+        <type>6553600</type>
+        <name>Information disclosure - Internal IP</name>
+        <host ip="10.0.12.55">http://bank.streamlit.local</host>
+        <path>/api/v1/health</path>
+        <location><![CDATA[HTTP Response Body]]></location>
+        <severity>Information</severity>
+        <confidence>Certain</confidence>
+        <issueBackground><![CDATA[The application discloses its internal IP address.]]></issueBackground>
+        <issueDetail><![CDATA[An internal IP address (192.168.1.100) was found in the response body.]]></issueDetail>
+    </issue>
+</issues>

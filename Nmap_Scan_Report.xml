@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sV -oX scan_report.xml 10.0.0.50" start="1700000000">
+  <host>
+    <status state="up" reason="echo-reply" reason_ttl="64"/>
+    <address addr="10.0.0.50" addrtype="ipv4"/>
+    <hostnames>
+      <hostname name="mail-server.local" type="PTR"/>
+    </hostnames>
+    <ports>
+      <port protocol="tcp" portid="22">
+        <state state="open" reason="syn-ack" reason_ttl="64"/>
+        <service name="ssh" product="OpenSSH" version="8.2p1 Ubuntu 4ubuntu0.1" extrainfo="Ubuntu Linux; protocol 2.0" ostype="Linux" method="probed" conf="10"/>
+      </port>
+      <port protocol="tcp" portid="80">
+        <state state="open" reason="syn-ack" reason_ttl="64"/>
+        <service name="http" product="Apache httpd" version="2.4.41" extrainfo="(Ubuntu)" method="probed" conf="10"/>
+      </port>
+      <port protocol="tcp" portid="445">
+        <state state="open" reason="syn-ack" reason_ttl="64"/>
+        <service name="netbios-ssn" product="Samba smbd" version="4.6.2" method="probed" conf="10"/>
+      </port>
+      <port protocol="tcp" portid="3389">
+        <state state="filtered" reason="no-response" reason_ttl="0"/>
+        <service name="ms-wbt-server" method="table" conf="3"/>
+      </port>
+    </ports>
+  </host>
+</nmaprun>

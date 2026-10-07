@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zero-Trust Campus Network Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #f4f6f9; }
+        .card { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .header-bar { background-color: #0f172a; color: white; padding: 15px 20px; margin-bottom: 30px; }
+    </style>
+</head>
+<body>
+
+<div class="header-bar d-flex justify-content-between align-items-center">
+    <h4 class="m-0">🛡️ AI-Driven Zero-Trust Identity Framework</h4>
+    <span class="badge bg-primary">Admin Access: K. Chennakeshavulu | ID: 99240041225</span>
+</div>
+
+<div class="container-fluid px-4">
+    <div class="row">
+        <!-- Key Metrics -->
+        <div class="col-md-4">
+            <div class="card p-3 text-center text-white bg-success">
+                <h5>Active Verified Identities</h5>
+                <h2 id="activeUsers">Loading...</h2>
+                <small>Out of 5,000 Expected Users</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-3 text-center text-white bg-danger">
+                <h5>AI Threats Blocked (IDS/IPS)</h5>
+                <h2 id="threatsBlocked">Loading...</h2>
+                <small>Real-time Anomaly Detection</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-3 text-center text-white bg-info">
+                <h5>Network Health (Predictive)</h5>
+                <h2 id="networkHealth">Loading...</h2>
+                <small>System Reliability Score</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- VLAN Segmentation Chart -->
+        <div class="col-md-8">
+            <div class="card p-3">
+                <h5>VLAN Segmentation Traffic</h5>
+                <canvas id="vlanChart" height="100"></canvas>
+            </div>
+        </div>
+        <!-- SIEM Alerts -->
+        <div class="col-md-4">
+            <div class="card p-3">
+                <h5>Live SIEM Security Alerts</h5>
+                <ul id="alertList" class="list-group list-group-flush">
+                    <li class="list-group-item text-muted">Awaiting network telemetry...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let vlanChartInstance = null;
+
+    async function fetchTelemetry() {
+        try {
+            const response = await fetch('/api/telemetry');
+            const data = await response.json();
+
+            // Update Metric Cards
+            document.getElementById('activeUsers').innerText = data.active_identities;
+            document.getElementById('threatsBlocked').innerText = data.ai_threats_blocked;
+            document.getElementById('networkHealth').innerText = data.network_health + "%";
+
+            // Update SIEM Alerts
+            const alertList = document.getElementById('alertList');
+            alertList.innerHTML = '';
+            data.recent_alerts.forEach(alert => {
+                let li = document.createElement('li');
+                li.className = "list-group-item text-danger";
+                li.innerHTML = `<strong>${alert.type}:</strong>${alert.message}`;
+                alertList.appendChild(li);
+            });
+
+            // Update Chart
+            updateChart(data.vlan_data);
+        } catch (error) {
+            console.error("Error fetching network telemetry:", error);
+        }
+    }
+
+    function updateChart(vlanData) {
+        const ctx = document.getElementById('vlanChart').getContext('2d');
+        const labels = Object.keys(vlanData);
+        const traffic = Object.values(vlanData);
+
+        if (vlanChartInstance) {
+            vlanChartInstance.data.datasets[0].data = traffic;
+            vlanChartInstance.update();
+        } else {
+            vlanChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Active Connections per Segment',
+                        data: traffic,
+                        backgroundColor: ['#0d6efd', '#6610f2', '#ffc107', '#dc3545', '#adb5bd']
+                    }]
+                },
+                options: { responsive: true, animation: { duration: 0 } }
+            });
+        }
+    }
+
+    // Refresh dashboard data every 3 seconds
+    setInterval(fetchTelemetry, 3000);
+    fetchTelemetry();
+</script>
+</body>
+</html>

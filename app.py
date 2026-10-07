@@ -45,7 +45,19 @@ if FIREBASE_INSTALLED:
     if not firebase_admin._apps:
         try:
             if "firebase" in st.secrets:
-                cred = credentials.Certificate(dict(st.secrets["firebase"]))
+                import json
+                
+                # If they pasted the raw JSON string into a 'json' key inside [firebase]
+                if "json" in st.secrets["firebase"]:
+                    secret_dict = json.loads(st.secrets["firebase"]["json"])
+                else:
+                    secret_dict = dict(st.secrets["firebase"])
+                    
+                # Fix TOML escaped newlines in the private key (this causes the PEM error)
+                if "private_key" in secret_dict:
+                    secret_dict["private_key"] = secret_dict["private_key"].replace('\\n', '\n')
+                    
+                cred = credentials.Certificate(secret_dict)
                 firebase_admin.initialize_app(cred)
             elif os.path.exists(FIREBASE_KEY):
                 cred = credentials.Certificate(FIREBASE_KEY)

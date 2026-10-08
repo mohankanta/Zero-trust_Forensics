@@ -267,6 +267,7 @@ def log_tool_to_coc(tool_name: str, findings: str):
         "location": f"Findings: {findings}"
     })
     save_complaint(cid, c)
+    log_action(f"Ran tool [{tool_name}] on {cid}")
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  PUBLIC COMPLAINT PAGE
@@ -408,6 +409,7 @@ def register_page(first_time: bool = False):
             else:
                 users[user_id] = {"full_name": full_name.strip(), "email": email.strip(), "mobile": mobile.strip(), "password": hash_password(password), "role": role, "expertise": expertise, "registered": datetime.datetime.now(IST).isoformat()}
                 save_users(users)
+                log_action(f"New User Registered: {user_id} ({role})")
                 st.success(f"🎉 Account created successfully!")
                 st.session_state.temp_user = user_id
                 st.session_state.auth_step = "mfa_select"

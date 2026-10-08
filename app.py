@@ -1,6 +1,9 @@
 import streamlit as st
 import datetime
 import time
+
+# Set timezone to Indian Standard Time (IST)
+IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
 import json
 import os
 import hashlib
@@ -202,7 +205,7 @@ if "page"         not in st.session_state: st.session_state.page         = None
 
 def log_action(action: str):
     if "session_logs" not in st.session_state: st.session_state.session_logs = []
-    ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ts = datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
     user = st.session_state.get("user_id", "Unknown")
     
     # ── AI Anomaly Detection Engine ──
@@ -227,7 +230,7 @@ def log_tool_to_coc(tool_name: str, findings: str):
     if "chain_of_custody" not in c: c["chain_of_custody"] = []
     
     c["chain_of_custody"].append({
-        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
         "action": f"🛠️ Forensic Tool Used: {tool_name}",
         "actor": f"Investigator ({uid})",
         "location": f"Findings: {findings}"
@@ -309,7 +312,7 @@ def public_complaint_page():
                 complaint_data = {
                     "case_id": case_id, "victim_name": name, "victim_phone": phone, "category": category,
                     "description": desc, "evidence_file": file_name, "evidence_path": file_path,
-                    "status": "Unassigned", "assigned_to": None, "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    "status": "Unassigned", "assigned_to": None, "timestamp": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
                 }
                 
                 if "Physical" in evidence_type:
@@ -366,7 +369,7 @@ def register_page(first_time: bool = False):
             if errors:
                 for e in errors: st.error(f"⚠️ {e}")
             else:
-                users[user_id] = {"full_name": full_name.strip(), "email": email.strip(), "mobile": mobile.strip(), "password": hash_password(password), "role": role, "expertise": expertise, "registered": datetime.datetime.now().isoformat()}
+                users[user_id] = {"full_name": full_name.strip(), "email": email.strip(), "mobile": mobile.strip(), "password": hash_password(password), "role": role, "expertise": expertise, "registered": datetime.datetime.now(IST).isoformat()}
                 save_users(users)
                 st.success(f"🎉 Account created successfully!")
                 st.session_state.temp_user = user_id
@@ -1438,7 +1441,7 @@ def tool_exiftool():
 <head><meta charset="utf-8"><title>Forensic Report</title></head>
 <body style="font-family: Arial, sans-serif;">
     <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px;">EXIF FORENSIC METADATA REPORT</h2>
-    <p><b>Generated:</b> {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}<br>
+    <p><b>Generated:</b> {datetime.datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')}<br>
     <b>Investigator:</b> {st.session_state.get('full_name', 'Unknown')}<br>
     <b>File Analyzed:</b> {uploaded_file.name}<br>
     <b>Total Tags Found:</b> {len(tags)}</p>
@@ -2201,7 +2204,7 @@ def workspace():
                         if "chain_of_custody" not in c:
                             c["chain_of_custody"] = [{"timestamp": c['timestamp'], "action": "Evidence Initially Submitted", "actor": c['victim_name'], "location": "Public Intake Portal"}]
                         c["chain_of_custody"].append({
-                            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "timestamp": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
                             "action": f"Evidence Handed Over to {assigned_to}",
                             "actor": f"Admin ({st.session_state.user_id})",
                             "location": ev_location
@@ -2258,7 +2261,7 @@ def workspace():
                     if new_note.strip():
                         if "chain_of_custody" not in c: c["chain_of_custody"] = []
                         c["chain_of_custody"].append({
-                            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "timestamp": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
                             "action": f"📝 Investigator Note: {new_note}",
                             "actor": f"Investigator ({st.session_state.user_id})",
                             "location": "Active Investigation File"
@@ -2278,7 +2281,7 @@ def workspace():
                         c["final_report"] = final_findings
                         if "chain_of_custody" not in c: c["chain_of_custody"] = []
                         c["chain_of_custody"].append({
-                            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "timestamp": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
                             "action": "Case Closed & Final Report Filed",
                             "actor": f"Investigator ({st.session_state.user_id})",
                             "location": "Secure Database"
@@ -2321,7 +2324,7 @@ def workspace():
                 def log_download():
                     if "chain_of_custody" not in c: c["chain_of_custody"] = []
                     c["chain_of_custody"].append({
-                        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "timestamp": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
                         "action": "Evidence Downloaded/Accessed",
                         "actor": f"Investigator ({st.session_state.user_id})",
                         "location": "Local Workstation Sandbox"
@@ -2369,7 +2372,7 @@ def workspace():
                         # Log to CoC
                         if "chain_of_custody" not in c: c["chain_of_custody"] = []
                         c["chain_of_custody"].append({
-                            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "timestamp": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
                             "action": f"Secured evidence file: {ev_file.name}",
                             "actor": f"Investigator ({st.session_state.user_id})",
                             "location": "Permanent Evidence Vault"
@@ -2454,7 +2457,7 @@ def workspace():
                 if st.button(f"🔍 Open Case for Review", key=f"open_admin_{cid}", type="primary"):
                     if "chain_of_custody" not in c: c["chain_of_custody"] = [{"timestamp": c['timestamp'], "action": "Evidence Initially Submitted", "actor": c['victim_name'], "location": "Public Intake Portal"}]
                     c["chain_of_custody"].append({
-                        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "timestamp": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
                         "action": "Unassigned Case Opened for Admin Review",
                         "actor": f"Admin ({st.session_state.user_id})",
                         "location": "Admin Dashboard"
@@ -2506,7 +2509,7 @@ def workspace():
                         log_action(f"Opened Case File: {cid}")
                         if "chain_of_custody" not in c: c["chain_of_custody"] = []
                         c["chain_of_custody"].append({
-                            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "timestamp": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
                             "action": "Case File & Evidence Opened for Review",
                             "actor": f"Investigator ({st.session_state.user_id})",
                             "location": "Secure Investigator Enclave"

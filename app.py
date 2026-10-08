@@ -96,8 +96,7 @@ st.markdown("""
 <style>
 html, body { background-color: #131f2e !important; color: #e0e6f0 !important; }
 [data-testid="stApp"] {
-    background-image: url('https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=2070&auto=format&fit=crop') !important;
-    background-size: cover !important;
+        background-size: cover !important;
     background-position: center !important;
     background-repeat: no-repeat !important;
     background-attachment: fixed !important;
@@ -2482,10 +2481,16 @@ def main():
     max_height_rule = "100vh" if current_page == "login" else "none"
     padding_top = "2vh" if current_page == "login" else "5vh"
     
-    # â”€â”€ DYNAMIC SCROLLING (AUTH PAGES) â”€â”€
+    if current_page == "login" or current_page == "register":
+        bg_url = "https://raw.githubusercontent.com/mohankanta/Zero-trust_Forensics/main/assets/wolf_login_background.jpg"
+    else:
+        bg_url = "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=2070&auto=format&fit=crop"
+
+    # DYNAMIC SCROLLING (AUTH PAGES)
     st.markdown(f"""
     <style>
-    
+    [data-testid="stApp"] {{ background-image: url('{bg_url}') !important; }}
+
     /* Dynamic Scrolling Rules */
     html, body, [data-testid="stAppViewContainer"] {{
         overflow: {overflow_rule} !important;
@@ -2505,6 +2510,8 @@ def main():
     else: login_page()
 
 if __name__ == "__main__": main()
+
+
 
 
 

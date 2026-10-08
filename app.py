@@ -2528,15 +2528,12 @@ def workspace():
                 if state_key not in st.session_state:
                     st.session_state[state_key] = False
                     
-                icon = "➖" if st.session_state[state_key] else "➕"
+                icon = "📂" if st.session_state[state_key] else "📁"
                 
-                col_btn, col_info = st.columns([0.3, 4.7])
-                with col_btn:
-                    if st.button(f"{icon}", key=f"btn_{inv_uid}"):
-                        st.session_state[state_key] = not st.session_state[state_key]
-                        st.rerun()
-                with col_info:
-                    st.markdown(f"<div style='padding-top:5px'><b>{inv_name} ({inv_uid})</b> — 🛡️ {inv_exp} | {len(pending_cases)} Pending | {len(completed_cases)} Completed</div>", unsafe_allow_html=True)
+                btn_text = f"{icon} {inv_name} ({inv_uid}) — 🛡️ {inv_exp} | {len(pending_cases)} Pending | {len(completed_cases)} Completed"
+                if st.button(btn_text, key=f"btn_{inv_uid}", use_container_width=True):
+                    st.session_state[state_key] = not st.session_state[state_key]
+                    st.rerun()
                 
                 if st.session_state[state_key]:
                     st.markdown(f"""<div style="background:#1b2a3b; padding:15px; border-radius:5px; margin-bottom:15px; border-left: 2px solid #38bdf8;">""", unsafe_allow_html=True)
@@ -2571,7 +2568,7 @@ def workspace():
                                     log_action(f"Admin reviewing Completed Case: {cid}")
                                     st.rerun()
                     st.markdown("</div>", unsafe_allow_html=True)
-                st.markdown("<hr style='margin:5px 0; border-color:#334155'>", unsafe_allow_html=True)
+                
                 
         st.markdown("---")
     else:

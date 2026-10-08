@@ -351,14 +351,10 @@ def register_page(first_time: bool = False):
         mobile    = st.text_input("mobile_reg", placeholder="Mobile Number (e.g. +1 555-0100)", label_visibility="collapsed")
         role      = st.selectbox("role_sel", ["investigator", "admin", "analyst", "responder", "auditor", "viewer"], label_visibility="collapsed")
         expertise = st.selectbox("expertise_sel", [
-            "Digital Forensics", "Malware Analysis", "Incident Response", "Network Security",
-            "Cloud Security", "Mobile Forensics", "Penetration Testing / Ethical Hacking",
-            "Vulnerability Management", "Security Architecture", "Cryptography",
-            "Threat Intelligence", "Identity & Access Management (IAM)",
-            "Governance, Risk, and Compliance (GRC)", "Application Security (AppSec)",
-            "IoT Security", "ICS / SCADA Security", "SOC Analysis",
-            "Red Teaming", "Blue Teaming", "Purple Teaming",
-            "Social Engineering / Human Risk", "Data Privacy & Protection"
+            "Digital Forensics", "Malware Analysis", "Incident Response (DFIR)",
+            "Network Security Monitoring", "Cloud Security Operations", "Mobile Forensics",
+            "Threat Intelligence & Hunting", "SOC Analysis", "Endpoint Detection & Response (EDR)",
+            "SIEM Engineering & Log Analysis", "Defensive Vulnerability Management", "Blue Teaming"
         ], label_visibility="collapsed")
         password  = st.text_input("pwd_reg",  placeholder="Password  (min. 8 characters)", type="password", label_visibility="collapsed")
         confirm   = st.text_input("cpwd_reg", placeholder="Confirm Password",               type="password", label_visibility="collapsed")

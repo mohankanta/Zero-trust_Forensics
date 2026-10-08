@@ -8,20 +8,26 @@ import json
 import os
 
 def get_client_ip():
-    try:
-        from streamlit.web.server.websocket_headers import _get_websocket_headers
-        h = _get_websocket_headers()
-        if "X-Forwarded-For" in h: return h["X-Forwarded-For"].split(",")[0]
-        if "X-Real-Ip" in h: return h["X-Real-Ip"]
-    except Exception:
-        pass
+    # Attempt to grab IP using Streamlit 1.37+ Context Headers (Case-Insensitive)
     try:
         if hasattr(st, "context") and hasattr(st.context, "headers"):
-            h = st.context.headers
-            if "X-Forwarded-For" in h: return h["X-Forwarded-For"].split(",")[0]
-            if "X-Real-Ip" in h: return h["X-Real-Ip"]
+            headers = st.context.headers
+            for k, v in headers.items():
+                if k.lower() == "x-forwarded-for": return v.split(",")[0].strip()
+                if k.lower() == "x-real-ip": return v.strip()
     except Exception:
         pass
+        
+    # Fallback to older Websocket Headers Hack (Case-Insensitive)
+    try:
+        from streamlit.web.server.websocket_headers import _get_websocket_headers
+        headers = _get_websocket_headers()
+        for k, v in headers.items():
+            if k.lower() == "x-forwarded-for": return v.split(",")[0].strip()
+            if k.lower() == "x-real-ip": return v.strip()
+    except Exception:
+        pass
+
     return "Unknown IP"
 
 import hashlib

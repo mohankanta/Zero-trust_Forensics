@@ -6,6 +6,24 @@ import time
 IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
 import json
 import os
+
+def get_client_ip():
+    try:
+        from streamlit.web.server.websocket_headers import _get_websocket_headers
+        h = _get_websocket_headers()
+        if "X-Forwarded-For" in h: return h["X-Forwarded-For"].split(",")[0]
+        if "X-Real-Ip" in h: return h["X-Real-Ip"]
+    except Exception:
+        pass
+    try:
+        if hasattr(st, "context") and hasattr(st.context, "headers"):
+            h = st.context.headers
+            if "X-Forwarded-For" in h: return h["X-Forwarded-For"].split(",")[0]
+            if "X-Real-Ip" in h: return h["X-Real-Ip"]
+    except Exception:
+        pass
+    return "Unknown IP"
+
 import hashlib
 import random
 import string
@@ -237,6 +255,7 @@ def log_action(action: str):
         audit_data.append({
             "timestamp": ts,
             "user": user,
+            "ip": get_client_ip(),
             "role": st.session_state.get("role", "Unknown"),
             "action": action,
             "ai_flag": ai
@@ -2482,7 +2501,9 @@ def workspace():
                 """, unsafe_allow_html=True)
             
                 df_audit = pd.DataFrame(audit_data)
-                df_audit = df_audit[["timestamp", "user", "role", "ai_flag", "action"]]
+                # Ensure backwards compatibility for old logs without IP
+                if "ip" not in df_audit.columns: df_audit["ip"] = "Unknown IP"
+                df_audit = df_audit[["timestamp", "ip", "user", "role", "ai_flag", "action"]]
                 # Style the dataframe for dark mode
                 st.dataframe(df_audit.sort_values("timestamp", ascending=False), use_container_width=True, hide_index=True, height=250)
             

@@ -2513,16 +2513,21 @@ def workspace():
                     st.rerun()
         st.markdown("---")
         
-        st.header("👥 Investigator Workloads")
-        for inv_uid in investigators:
-            inv_name = users[inv_uid].get("full_name", inv_uid)
-            inv_exp  = users[inv_uid].get("expertise", "General")
-            inv_cases = {cid: c for cid, c in all_complaints.items() if c.get("assigned_to") == inv_uid}
-            
-            pending_cases = {cid: c for cid, c in inv_cases.items() if c.get("status", "Assigned") != "Completed"}
-            completed_cases = {cid: c for cid, c in inv_cases.items() if c.get("status", "") == "Completed"}
-            
-            with st.expander(f"➕ {inv_name} ({inv_uid}) — 🛡️ {inv_exp} | {len(pending_cases)} Pending | {len(completed_cases)} Completed"):
+        st.header("📊 Investigator Workloads")
+        with st.expander("👥 Expand Team Workloads & Active Cases", expanded=False):
+            for inv_uid in investigators:
+                inv_name = users[inv_uid].get("full_name", inv_uid)
+                inv_exp  = users[inv_uid].get("expertise", "General")
+                inv_cases = {cid: c for cid, c in all_complaints.items() if c.get("assigned_to") == inv_uid}
+                
+                pending_cases = {cid: c for cid, c in inv_cases.items() if c.get("status", "Assigned") != "Completed"}
+                completed_cases = {cid: c for cid, c in inv_cases.items() if c.get("status", "") == "Completed"}
+                
+                st.markdown(f"""<div style="background:#1b2a3b; padding:10px; border-radius:5px; margin-top:15px; border-left: 4px solid #38bdf8;">
+                <h4 style="margin:0; color:#e0e6f0;">🕵️ {inv_name} ({inv_uid})</h4>
+                <p style="margin:0; font-size:0.9em; color:#7ec8e3;">🛡️ {inv_exp} | {len(pending_cases)} Pending | {len(completed_cases)} Completed</p>
+                </div>""", unsafe_allow_html=True)
+                
                 if pending_cases:
                     st.markdown("**Pending / Assigned Cases:**")
                     for cid, c in pending_cases.items():
@@ -2553,7 +2558,8 @@ def workspace():
                                 st.session_state.active_case = cid
                                 log_action(f"Admin reviewing Completed Case: {cid}")
                                 st.rerun()
-                        
+                st.markdown("<hr style='margin:10px 0; border-color:#334155'>", unsafe_allow_html=True)
+                
         st.markdown("---")
     else:
         st.header("📂 My Active Case Files")

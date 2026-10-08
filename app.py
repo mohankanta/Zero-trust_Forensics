@@ -2514,46 +2514,65 @@ def workspace():
         st.markdown("---")
         
         st.header("📊 Investigator Workloads")
-        for inv_uid in investigators:
-            inv_name = users[inv_uid].get("full_name", inv_uid)
-            inv_exp  = users[inv_uid].get("expertise", "General")
-            inv_cases = {cid: c for cid, c in all_complaints.items() if c.get("assigned_to") == inv_uid}
-            
-            pending_cases = {cid: c for cid, c in inv_cases.items() if c.get("status", "Assigned") != "Completed"}
-            completed_cases = {cid: c for cid, c in inv_cases.items() if c.get("status", "") == "Completed"}
-            
-            with st.expander(f"➕ {inv_name} ({inv_uid}) — 🛡️ {inv_exp} | {len(pending_cases)} Pending | {len(completed_cases)} Completed"):
-                if pending_cases:
-                    st.markdown("**Pending / Assigned Cases:**")
-                    for cid, c in pending_cases.items():
-                        c_col1, c_col2 = st.columns([4, 1])
-                        with c_col1:
-                            st.markdown(f"- **{cid}** ({c.get('category', 'N/A')}) — Victim: {c.get('victim_name', 'N/A')} — *{c.get('timestamp', 'N/A')}*")
-                            st.markdown(f"  <small style='color:#7ec8e3'>Status: {c.get('status', 'In Progress')}</small>", unsafe_allow_html=True)
-                        with c_col2:
-                            if st.button("🔍 Open Case", key=f"admin_open_pending_{cid}"):
-                                st.query_params["case"] = cid
-                                st.session_state.active_case = cid
-                                log_action(f"Admin reviewing Assigned Case: {cid}")
-                                st.rerun()
-                else:
-                    st.markdown("*No pending cases.*")
+        with st.expander("👥 Expand Team Workloads & Active Cases", expanded=False):
+            for inv_uid in investigators:
+                inv_name = users[inv_uid].get("full_name", inv_uid)
+                inv_exp  = users[inv_uid].get("expertise", "General")
+                inv_cases = {cid: c for cid, c in all_complaints.items() if c.get("assigned_to") == inv_uid}
+                
+                pending_cases = {cid: c for cid, c in inv_cases.items() if c.get("status", "Assigned") != "Completed"}
+                completed_cases = {cid: c for cid, c in inv_cases.items() if c.get("status", "") == "Completed"}
+                
+                # Custom Toggle State
+                state_key = f"toggle_inv_{inv_uid}"
+                if state_key not in st.session_state:
+                    st.session_state[state_key] = False
                     
-                if completed_cases:
-                    st.markdown("**Completed Cases:**")
-                    for cid, c in completed_cases.items():
-                        c_col1, c_col2 = st.columns([4, 1])
-                        with c_col1:
-                            st.markdown(f"✅ **{cid}** ({c.get('category', 'N/A')}) — Victim: {c.get('victim_name', 'N/A')}")
-                            if c.get("final_report"):
-                                st.markdown(f"<div style='margin-left: 20px; font-size: 0.9em; padding: 5px; border-left: 2px solid #38bdf8; color: #7ec8e3;'><b>Final Report:</b> {c['final_report']}</div>", unsafe_allow_html=True)
-                        with c_col2:
-                            if st.button("🔍 Open Case", key=f"admin_open_completed_{cid}"):
-                                st.query_params["case"] = cid
-                                st.session_state.active_case = cid
-                                log_action(f"Admin reviewing Completed Case: {cid}")
-                                st.rerun()
-                                
+                icon = "➖" if st.session_state[state_key] else "➕"
+                
+                col_btn, col_info = st.columns([1, 4])
+                with col_btn:
+                    if st.button(f"{icon} Expand", key=f"btn_{inv_uid}"):
+                        st.session_state[state_key] = not st.session_state[state_key]
+                        st.rerun()
+                with col_info:
+                    st.markdown(f"<div style='padding-top:5px'><b>{inv_name} ({inv_uid})</b> — 🛡️ {inv_exp} | {len(pending_cases)} Pending | {len(completed_cases)} Completed</div>", unsafe_allow_html=True)
+                
+                if st.session_state[state_key]:
+                    st.markdown(f"""<div style="background:#1b2a3b; padding:15px; border-radius:5px; margin-bottom:15px; border-left: 2px solid #38bdf8;">""", unsafe_allow_html=True)
+                    if pending_cases:
+                        st.markdown("**Pending / Assigned Cases:**")
+                        for cid, c in pending_cases.items():
+                            c_col1, c_col2 = st.columns([4, 1])
+                            with c_col1:
+                                st.markdown(f"- **{cid}** ({c.get('category', 'N/A')}) — Victim: {c.get('victim_name', 'N/A')} — *{c.get('timestamp', 'N/A')}*")
+                                st.markdown(f"  <small style='color:#7ec8e3'>Status: {c.get('status', 'In Progress')}</small>", unsafe_allow_html=True)
+                            with c_col2:
+                                if st.button("🔍 Open Case", key=f"admin_open_pending_{cid}"):
+                                    st.query_params["case"] = cid
+                                    st.session_state.active_case = cid
+                                    log_action(f"Admin reviewing Assigned Case: {cid}")
+                                    st.rerun()
+                    else:
+                        st.markdown("*No pending cases.*")
+                        
+                    if completed_cases:
+                        st.markdown("**Completed Cases:**")
+                        for cid, c in completed_cases.items():
+                            c_col1, c_col2 = st.columns([4, 1])
+                            with c_col1:
+                                st.markdown(f"✅ **{cid}** ({c.get('category', 'N/A')}) — Victim: {c.get('victim_name', 'N/A')}")
+                                if c.get("final_report"):
+                                    st.markdown(f"<div style='margin-left: 20px; font-size: 0.9em; padding: 5px; border-left: 2px solid #38bdf8; color: #7ec8e3;'><b>Final Report:</b> {c['final_report']}</div>", unsafe_allow_html=True)
+                            with c_col2:
+                                if st.button("🔍 Open Case", key=f"admin_open_completed_{cid}"):
+                                    st.query_params["case"] = cid
+                                    st.session_state.active_case = cid
+                                    log_action(f"Admin reviewing Completed Case: {cid}")
+                                    st.rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown("<hr style='margin:5px 0; border-color:#334155'>", unsafe_allow_html=True)
+                
         st.markdown("---")
     else:
         st.header("📂 My Active Case Files")

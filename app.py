@@ -219,12 +219,35 @@ def log_action(action: str):
     # ── AI Anomaly Detection Engine ──
     ai = "Verified: Normal Behavior"
     if "admin" in user.lower(): ai = "Verified: Admin Privileged Action"
-    if any(x in action for x in ["Sandbox", "Volatility", "Detonating"]): ai = "⚠️ Flagged: High-Risk Execution"
-    if "Extracted" in action or "Acquisition" in action: ai = "🔒 Chain of Custody Logged"
+    if any(x in action for x in ["Sandbox", "Volatility", "Detonating"]): ai = "🚩 Flagged: High-Risk Execution"
+    if "Extracted" in action or "Acquisition" in action: ai = "🔗 Chain of Custody Logged"
     if "Logout" in action or "Login" in action: ai = "🔐 Identity Verified"
     if "Unauthorized" in action: ai = "🚨 CRITICAL: Intrusion attempt detected"
     
     st.session_state.session_logs.append(f"[{ts}] User:{user} | {action} | AI Status: {ai}")
+    
+    # --- GLOBAL AI AUDIT LOGGING ---
+    try:
+        import json, os
+        audit_data = []
+        if os.path.exists(GLOBAL_AUDIT_FILE):
+            with open(GLOBAL_AUDIT_FILE, "r") as f:
+                audit_data = json.load(f)
+        
+        audit_data.append({
+            "timestamp": ts,
+            "user": user,
+            "role": st.session_state.get("role", "Unknown"),
+            "action": action,
+            "ai_flag": ai
+        })
+        
+        if len(audit_data) > 1000: audit_data = audit_data[-1000:]
+        
+        with open(GLOBAL_AUDIT_FILE, "w") as f:
+            json.dump(audit_data, f)
+    except Exception:
+        pass
 
 def log_tool_to_coc(tool_name: str, findings: str):
     cid = st.session_state.get("active_case")

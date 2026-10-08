@@ -35,6 +35,7 @@ if "session" in st.query_params:
     sid = st.query_params["session"]
     if os.path.exists(SESSIONS_FILE):
         try:
+            import json
             with open(SESSIONS_FILE, "r") as f: sessions = json.load(f)
             if sid in sessions:
                 st.session_state.logged_in = True
@@ -514,6 +515,20 @@ def login_page():
                     st.session_state.expertise = users[tmp_user].get("expertise", "Investigator")
                     st.session_state.session_logs = []
                     log_action("Successful Login")
+                    
+                    import uuid, json
+                    sid = uuid.uuid4().hex
+                    try:
+                        with open(SESSIONS_FILE, "r") as f: sess_data = json.load(f)
+                    except Exception: sess_data = {}
+                    sess_data[sid] = {
+                        "user_id": tmp_user,
+                        "role": st.session_state.role,
+                        "full_name": st.session_state.full_name
+                    }
+                    with open(SESSIONS_FILE, "w") as f: json.dump(sess_data, f)
+                    st.query_params["session"] = sid
+                    
                     st.success("âœ… Authentication Successful! Redirectingâ€¦")
                     time.sleep(1); st.rerun()
                 else:
@@ -2104,6 +2119,7 @@ def workspace():
         if st.button("Logout"):
             log_action("User Logout")
             for key in list(st.session_state.keys()): del st.session_state[key]
+            st.query_params.clear()
             st.rerun()
             
         st.markdown("---")
@@ -2481,16 +2497,20 @@ def main():
     max_height_rule = "100vh" if current_page == "login" else "none"
     padding_top = "2vh" if current_page == "login" else "5vh"
     
+    # â”€â”€ DYNAMIC SCROLLING (AUTH PAGES) â”€â”€
+    
     if current_page == "login" or current_page == "register":
         bg_url = "https://raw.githubusercontent.com/mohankanta/Zero-trust_Forensics/main/assets/wolf_login_background.jpg"
+        # Add a dim overlay to the wolf image
+        bg_css = f"linear-gradient(rgba(10, 16, 24, 0.75), rgba(10, 16, 24, 0.75)), url('{bg_url}')"
     else:
         bg_url = "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=2070&auto=format&fit=crop"
+        bg_css = f"url('{bg_url}')"
 
-    # DYNAMIC SCROLLING (AUTH PAGES)
     st.markdown(f"""
     <style>
-    [data-testid="stApp"] {{ background-image: url('{bg_url}') !important; }}
-
+    [data-testid="stApp"] {{ background-image: {bg_css} !important; }}
+    
     /* Dynamic Scrolling Rules */
     html, body, [data-testid="stAppViewContainer"] {{
         overflow: {overflow_rule} !important;
@@ -2510,13 +2530,5 @@ def main():
     else: login_page()
 
 if __name__ == "__main__": main()
-
-
-
-
-
-
-
-
 
 

@@ -2528,15 +2528,24 @@ def workspace():
                 if state_key not in st.session_state:
                     st.session_state[state_key] = False
                     
-                icon = "📂" if st.session_state[state_key] else "📁"
+                icon = "➖" if st.session_state[state_key] else "➕"
                 
-                btn_text = f"{icon} {inv_name} ({inv_uid}) — 🛡️ {inv_exp} | {len(pending_cases)} Pending | {len(completed_cases)} Completed"
-                if st.button(btn_text, key=f"btn_{inv_uid}", use_container_width=True):
-                    st.session_state[state_key] = not st.session_state[state_key]
-                    st.rerun()
+                c_info, c_btn = st.columns([9, 1])
+                with c_info:
+                    st.markdown(f"<div style='padding-top:10px;'><b>{inv_name} ({inv_uid})</b> — 🛡️ {inv_exp} | {len(pending_cases)} Pending | {len(completed_cases)} Completed</div>", unsafe_allow_html=True)
+                with c_btn:
+                    if st.button(icon, key=f"btn_{inv_uid}", use_container_width=True):
+                        st.session_state[state_key] = not st.session_state[state_key]
+                        st.rerun()
                 
                 if st.session_state[state_key]:
-                    st.markdown(f"""<div style="background:#1b2a3b; padding:15px; border-radius:5px; margin-bottom:15px; border-left: 2px solid #38bdf8;">""", unsafe_allow_html=True)
+                    inv_email = users[inv_uid].get("email", "N/A")
+                    inv_mobile = users[inv_uid].get("mobile", "N/A")
+                    
+                    st.markdown(f"""<div style="background:#1b2a3b; padding:15px; border-radius:5px; margin-bottom:15px; border-left: 2px solid #38bdf8;">
+                    <div style="color:#7ec8e3; margin-bottom:15px; font-size:0.95em;">
+                        📧 <b>Email:</b> {inv_email} &nbsp;|&nbsp; 📞 <b>Phone:</b> {inv_mobile}
+                    </div>""", unsafe_allow_html=True)
                     if pending_cases:
                         st.markdown("**Pending / Assigned Cases:**")
                         for cid, c in pending_cases.items():

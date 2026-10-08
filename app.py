@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import datetime
 import time
 import json
@@ -10,7 +10,7 @@ import smtplib
 from email.message import EmailMessage
 import uuid
 
-# ── Firebase DB Setup ──────────────────────────────────────────────────────────
+# â”€â”€ Firebase DB Setup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 try:
     import firebase_admin
     from firebase_admin import credentials, firestore, storage
@@ -18,28 +18,52 @@ try:
 except ImportError:
     FIREBASE_INSTALLED = False
 
-# ── Page config ────────────────────────────────────────────────────────────────
-st.set_page_config(layout="wide", page_title="Zero Trust Workspace", page_icon="🛡️")
+# â”€â”€ Page config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+st.set_page_config(layout="wide", page_title="Zero Trust Workspace", page_icon="ðŸ›¡ï¸")
 
-# ── Paths & Secrets ────────────────────────────────────────────────────────────
+# â”€â”€ Paths & Secrets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 BASE_DIR        = os.path.dirname(os.path.abspath(__file__))
 USERS_FILE      = os.path.join(BASE_DIR, "users.json")
 COMPLAINTS_FILE = os.path.join(BASE_DIR, "complaints.json")
 FIREBASE_KEY    = os.path.join(BASE_DIR, "firebase_key.json")
 UPLOADS_DIR        = os.path.join(BASE_DIR, "uploads")
 EVIDENCE_VAULT_DIR = os.path.join(BASE_DIR, "evidence_vault")
+SESSIONS_FILE   = os.path.join(BASE_DIR, "sessions.json")
+
+# --- Sync URL State for Browser Back/Refresh ---
+if "session" in st.query_params:
+    sid = st.query_params["session"]
+    if os.path.exists(SESSIONS_FILE):
+        try:
+            with open(SESSIONS_FILE, "r") as f: sessions = json.load(f)
+            if sid in sessions:
+                st.session_state.logged_in = True
+                st.session_state.user_id = sessions[sid]["user_id"]
+                st.session_state.role = sessions[sid]["role"]
+                st.session_state.full_name = sessions[sid]["full_name"]
+        except Exception: pass
+        
+if "tool" in st.query_params:
+    st.session_state.active_tool = st.query_params["tool"]
+elif "active_tool" in st.session_state:
+    st.session_state.active_tool = None
+    
+if "case" in st.query_params:
+    st.session_state.active_case = st.query_params["case"]
+elif "active_case" in st.session_state:
+    st.session_state.active_case = None
 
 if not os.path.exists(UPLOADS_DIR): os.makedirs(UPLOADS_DIR)
 if not os.path.exists(EVIDENCE_VAULT_DIR): os.makedirs(EVIDENCE_VAULT_DIR)
 
-# ── SMTP Configuration (Edit these with your real details) ───────────────────────
+# â”€â”€ SMTP Configuration (Edit these with your real details) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 SMTP_EMAIL = "mohankanta112@gmail.com"
 SMTP_APP_PASSWORD = "sxke hpav hunf nlqg"
 
-# ── API Keys ───────────────────────────────────────────────────────────────────
+# â”€â”€ API Keys â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 VIRUSTOTAL_API_KEY = "e16b303c571b8a4d9e73d40eaafc9c4e26551146d5d799f6329d206f68c7bb69" # Paste your API key here to automatically load it in the tool
 
-# ── Initialize Firebase ────────────────────────────────────────────────────────
+# â”€â”€ Initialize Firebase â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 db = None
 if FIREBASE_INSTALLED:
     if not firebase_admin._apps:
@@ -67,7 +91,7 @@ if FIREBASE_INSTALLED:
     if firebase_admin._apps:
         db = firestore.client()
 
-# ── Global CSS ─────────────────────────────────────────────────────────────────
+# â”€â”€ Global CSS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown("""
 <style>
 html, body { background-color: #131f2e !important; color: #e0e6f0 !important; }
@@ -124,9 +148,9 @@ div[data-testid="stProgressBar"] > div > div { background-color:#38bdf8 !importa
 </style>
 """, unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  HYBRID DB MANAGER (Users & Complaints)
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 def load_users() -> dict:
     if db:
         try: return {doc.id: doc.to_dict() for doc in db.collection("users").stream()}
@@ -163,7 +187,7 @@ def check_password(plain: str, hashed: str) -> bool: return hash_password(plain)
 
 def send_email_otp(user_email: str, otp: str):
     if not SMTP_EMAIL or not SMTP_APP_PASSWORD:
-        return False, f"⚠️ SMTP not configured! Your simulated OTP code is: **{otp}**"
+        return False, f"âš ï¸ SMTP not configured! Your simulated OTP code is: **{otp}**"
     try:
         msg = EmailMessage()
         msg.set_content(f"Your Zero Trust Portal login code is: {otp}\n\nThis code will expire shortly.")
@@ -173,9 +197,9 @@ def send_email_otp(user_email: str, otp: str):
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(SMTP_EMAIL, SMTP_APP_PASSWORD)
             server.send_message(msg)
-        return True, f"✅ An email containing your OTP has been sent to **{user_email}**."
+        return True, f"âœ… An email containing your OTP has been sent to **{user_email}**."
     except Exception:
-        return False, f"❌ Failed to send email. Your OTP code is: **{otp}**"
+        return False, f"âŒ Failed to send email. Your OTP code is: **{otp}**"
 
 if "active_tool"  not in st.session_state: st.session_state.active_tool  = None
 if "page"         not in st.session_state: st.session_state.page         = None
@@ -185,13 +209,13 @@ def log_action(action: str):
     ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     user = st.session_state.get("user_id", "Unknown")
     
-    # ── AI Anomaly Detection Engine ──
+    # â”€â”€ AI Anomaly Detection Engine â”€â”€
     ai = "Verified: Normal Behavior"
     if "admin" in user.lower(): ai = "Verified: Admin Privileged Action"
-    if any(x in action for x in ["Sandbox", "Volatility", "Detonating"]): ai = "⚠️ Flagged: High-Risk Execution"
-    if "Extracted" in action or "Acquisition" in action: ai = "🔒 Chain of Custody Logged"
-    if "Logout" in action or "Login" in action: ai = "🔐 Identity Verified"
-    if "Unauthorized" in action: ai = "🚨 CRITICAL: Intrusion attempt detected"
+    if any(x in action for x in ["Sandbox", "Volatility", "Detonating"]): ai = "âš ï¸ Flagged: High-Risk Execution"
+    if "Extracted" in action or "Acquisition" in action: ai = "ðŸ”’ Chain of Custody Logged"
+    if "Logout" in action or "Login" in action: ai = "ðŸ” Identity Verified"
+    if "Unauthorized" in action: ai = "ðŸš¨ CRITICAL: Intrusion attempt detected"
     
     st.session_state.session_logs.append(f"[{ts}] User:{user} | {action} | AI Status: {ai}")
 
@@ -208,20 +232,20 @@ def log_tool_to_coc(tool_name: str, findings: str):
     
     c["chain_of_custody"].append({
         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "action": f"🛠️ Forensic Tool Used: {tool_name}",
+        "action": f"ðŸ› ï¸ Forensic Tool Used: {tool_name}",
         "actor": f"Investigator ({uid})",
         "location": f"Findings: {findings}"
     })
     save_complaint(cid, c)
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  PUBLIC COMPLAINT PAGE
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 def public_complaint_page():
     _, col, _ = st.columns([1, 1.7, 1])
     with col:
         st.markdown("""<div class="auth-card" style="max-width:700px">
-            <div class="card-icon">🚨</div><div class="card-title">File an Official Complaint</div>
+            <div class="card-icon">ðŸš¨</div><div class="card-title">File an Official Complaint</div>
             <div class="card-sub">Secure Public Reporting Portal</div></div>""", unsafe_allow_html=True)
         st.markdown("<div style='height:15px'></div><h4 style='color:#38bdf8'>Victim Information</h4>", unsafe_allow_html=True)
         name = st.text_input("c_name", placeholder="Full Name", label_visibility="collapsed")
@@ -258,21 +282,21 @@ def public_complaint_page():
             st.caption("Upload screenshots, bank statements, or suspicious files (PDF, JPG, PNG).")
             uploaded_file = st.file_uploader("Upload Evidence", label_visibility="collapsed")
         else:
-            st.info("⚠️ **Physical Handover Required:** Please describe the device below. You must physically drop this device off at the Cyber Crime Station after submitting.")
+            st.info("âš ï¸ **Physical Handover Required:** Please describe the device below. You must physically drop this device off at the Cyber Crime Station after submitting.")
             phys_device_desc = st.text_input("Device Description", placeholder="e.g., iPhone 14 Pro (Black), Seagate 1TB External Hard Drive")
             
         st.markdown("<div style='height:15px'></div>", unsafe_allow_html=True)
         submit_btn = st.button("SUBMIT COMPLAINT", key="submit_complaint", use_container_width=True)
         st.markdown('<div class="secondary-btn">', unsafe_allow_html=True)
-        if st.button("← Cancel & Return to Login", key="cancel_complaint", use_container_width=True):
+        if st.button("â† Cancel & Return to Login", key="cancel_complaint", use_container_width=True):
             st.session_state.page = "login"; st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
         if submit_btn:
             if not name.strip() or not phone.strip() or not desc.strip():
-                st.error("⚠️ Please fill out your Name, Mobile Number, and Incident Description.")
+                st.error("âš ï¸ Please fill out your Name, Mobile Number, and Incident Description.")
             elif "Physical" in evidence_type and not phys_device_desc.strip():
-                st.error("⚠️ Please describe the physical device you intend to hand over.")
+                st.error("âš ï¸ Please describe the physical device you intend to hand over.")
             else:
                 case_id = f"CASE-{random.randint(1000, 9999)}"
                 file_path = file_name = None
@@ -299,19 +323,19 @@ def public_complaint_page():
                 
                 save_complaint(case_id, complaint_data)
                 log_action(f"New Complaint Filed: {case_id}")
-                st.success(f"✅ Complaint Submitted Successfully! Your tracking ID is **{case_id}**.")
+                st.success(f"âœ… Complaint Submitted Successfully! Your tracking ID is **{case_id}**.")
                 st.info("Our investigators have been notified and will review your evidence securely.")
                 time.sleep(4); st.session_state.page = "login"; st.rerun()
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  REGISTER & LOGIN PAGES (Centered Interface)
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 def register_page(first_time: bool = False):
     _, col, _ = st.columns([1, 1.7, 1])
     with col:
-        heading = "Create Your Account" if not first_time else "Welcome — Set Up Your Account"
-        sub     = "No users found · Be the first to register" if first_time else "Zero Trust Identity Portal · New User Registration"
-        st.markdown(f"""<div class="auth-card"><div class="card-icon">🔐</div><div class="card-title">{heading}</div><div class="card-sub">{sub}</div></div>""", unsafe_allow_html=True)
+        heading = "Create Your Account" if not first_time else "Welcome â€” Set Up Your Account"
+        sub     = "No users found Â· Be the first to register" if first_time else "Zero Trust Identity Portal Â· New User Registration"
+        st.markdown(f"""<div class="auth-card"><div class="card-icon">ðŸ”</div><div class="card-title">{heading}</div><div class="card-sub">{sub}</div></div>""", unsafe_allow_html=True)
         
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
         full_name = st.text_input("fn", placeholder="Full Name", label_visibility="collapsed")
@@ -329,7 +353,7 @@ def register_page(first_time: bool = False):
             st.markdown('<div class="or-divider">OR</div>', unsafe_allow_html=True)
             with st.container():
                 st.markdown('<div class="secondary-btn">', unsafe_allow_html=True)
-                if st.button("← Back to Login", key="goto_login_from_reg", use_container_width=True):
+                if st.button("â† Back to Login", key="goto_login_from_reg", use_container_width=True):
                     st.session_state.page = "login"; st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -344,11 +368,11 @@ def register_page(first_time: bool = False):
             if password != confirm: errors.append("Passwords do not match.")
 
             if errors:
-                for e in errors: st.error(f"⚠️ {e}")
+                for e in errors: st.error(f"âš ï¸ {e}")
             else:
                 users[user_id] = {"full_name": full_name.strip(), "email": email.strip(), "mobile": mobile.strip(), "password": hash_password(password), "role": role, "expertise": expertise, "registered": datetime.datetime.now().isoformat()}
                 save_users(users)
-                st.success(f"🎉 Account created successfully!")
+                st.success(f"ðŸŽ‰ Account created successfully!")
                 st.session_state.temp_user = user_id
                 st.session_state.auth_step = "mfa_select"
                 st.session_state.page = "login"
@@ -360,7 +384,7 @@ def login_page():
     _, col, _ = st.columns([1, 1.6, 1])
     with col:
         if st.session_state.auth_step == "credentials":
-            st.markdown("""<div class="auth-card"><div class="card-icon">🛡️</div><div class="card-title">Log In</div><div class="card-sub">Zero Trust Identity Portal</div></div>""", unsafe_allow_html=True)
+            st.markdown("""<div class="auth-card"><div class="card-icon">ðŸ›¡ï¸</div><div class="card-title">Log In</div><div class="card-sub">Zero Trust Identity Portal</div></div>""", unsafe_allow_html=True)
             st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
             username = st.text_input("uid", placeholder="User ID", label_visibility="collapsed")
             password = st.text_input("pwd", placeholder="Password", type="password", label_visibility="collapsed")
@@ -375,7 +399,7 @@ def login_page():
             else:
                 st.markdown("<div style='height:15px'></div>", unsafe_allow_html=True)
             
-            # ── HORIZONTAL BUTTON LAYOUT ──
+            # â”€â”€ HORIZONTAL BUTTON LAYOUT â”€â”€
             btn_col1, btn_col2 = st.columns(2)
             with btn_col1:
                 login_clicked = st.button("LOG IN", key="btn_login", use_container_width=True)
@@ -385,7 +409,7 @@ def login_page():
             
             st.markdown('<div class="or-divider">CITIZEN PORTAL</div>', unsafe_allow_html=True)
             st.markdown('<div class="secondary-btn" style="margin-bottom: 18px;">', unsafe_allow_html=True)
-            if st.button("🚨 File a Public Complaint", key="goto_complaint", use_container_width=True):
+            if st.button("ðŸš¨ File a Public Complaint", key="goto_complaint", use_container_width=True):
                 st.session_state.page = "complaint"; st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -398,7 +422,7 @@ def login_page():
                     st.rerun()
                 else:
                     st.session_state.show_forgot_password = True
-                    st.error("⚠️ Invalid User ID or Password.")
+                    st.error("âš ï¸ Invalid User ID or Password.")
                     st.rerun()
                     
             # JS Hack for Keyboard Navigation
@@ -439,11 +463,11 @@ def login_page():
             tmp_user = st.session_state.get("temp_user", "")
             user_data = users.get(tmp_user, {})
             name = user_data.get("full_name", tmp_user)
-            st.markdown(f"""<div class="auth-card"><div class="card-icon">📱</div><div class="card-title">MFA Selection</div><div class="card-sub">Welcome, {name}</div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="auth-card"><div class="card-icon">ðŸ“±</div><div class="card-title">MFA Selection</div><div class="card-sub">Welcome, {name}</div></div>""", unsafe_allow_html=True)
             
             st.markdown("<div style='text-align: center; color: #e0e6f0; margin-bottom: 20px;'>How would you like to receive your security code?</div>", unsafe_allow_html=True)
             
-            if st.button("✉️ Send Code via Email", use_container_width=True, type="primary"):
+            if st.button("âœ‰ï¸ Send Code via Email", use_container_width=True, type="primary"):
                 otp = "".join(random.choices(string.digits, k=6))
                 st.session_state.current_otp = otp
                 with st.spinner("Sending authentication code..."):
@@ -454,17 +478,17 @@ def login_page():
                 
             st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
             
-            if st.button("📱 Send Code via SMS (Mobile)", use_container_width=True, type="primary"):
+            if st.button("ðŸ“± Send Code via SMS (Mobile)", use_container_width=True, type="primary"):
                 otp = "".join(random.choices(string.digits, k=6))
                 st.session_state.current_otp = otp
                 mobile_num = user_data.get("mobile", "Unknown Number")
-                st.session_state.mfa_status_message = f"✅ Simulated SMS sent to {mobile_num} with code: **{otp}**"
+                st.session_state.mfa_status_message = f"âœ… Simulated SMS sent to {mobile_num} with code: **{otp}**"
                 st.session_state.mfa_status_success = True
                 st.session_state.auth_step = "mfa"
                 st.rerun()
                 
             st.markdown('<div class="secondary-btn" style="margin-top:20px;">', unsafe_allow_html=True)
-            if st.button("← Cancel Login", use_container_width=True):
+            if st.button("â† Cancel Login", use_container_width=True):
                 st.session_state.auth_step = "credentials"
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
@@ -472,16 +496,16 @@ def login_page():
         elif st.session_state.auth_step == "mfa":
             users, tmp_user = load_users(), st.session_state.get("temp_user", "")
             name = users.get(tmp_user, {}).get("full_name", tmp_user)
-            st.markdown(f"""<div class="auth-card"><div class="card-icon">🔐</div><div class="card-title">Verify Identity</div><div class="card-sub">MFA Step 2 — Welcome, {name}</div></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="auth-card"><div class="card-icon">ðŸ”</div><div class="card-title">Verify Identity</div><div class="card-sub">MFA Step 2 â€” Welcome, {name}</div></div>""", unsafe_allow_html=True)
             
             if st.session_state.get("mfa_status_success"): st.info(st.session_state.get("mfa_status_message", ""))
             else: st.warning(st.session_state.get("mfa_status_message", ""))
 
-            st.markdown('<div class="mfa-hint">🔑 Enter the 6-digit MFA code sent to your email.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="mfa-hint">ðŸ”‘ Enter the 6-digit MFA code sent to your email.</div>', unsafe_allow_html=True)
             mfa_code = st.text_input("mfa", placeholder="6-digit MFA Code", type="password", max_chars=6, label_visibility="collapsed")
             verify_clicked = st.button("VERIFY & SIGN IN", key="btn_verify", use_container_width=True)
             st.markdown('<div class="secondary-btn">', unsafe_allow_html=True)
-            cancel_clicked = st.button("← Back to Login", key="btn_cancel", use_container_width=True)
+            cancel_clicked = st.button("â† Back to Login", key="btn_cancel", use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
             if verify_clicked:
@@ -491,10 +515,10 @@ def login_page():
                     st.session_state.expertise = users[tmp_user].get("expertise", "Investigator")
                     st.session_state.session_logs = []
                     log_action("Successful Login")
-                    st.success("✅ Authentication Successful! Redirecting…")
+                    st.success("âœ… Authentication Successful! Redirectingâ€¦")
                     time.sleep(1); st.rerun()
                 else:
-                    st.error("⚠️ Invalid MFA Code. Please try again.")
+                    st.error("âš ï¸ Invalid MFA Code. Please try again.")
             if cancel_clicked: st.session_state.auth_step = "credentials"; st.rerun()
             
             import streamlit.components.v1 as components
@@ -525,11 +549,11 @@ def login_page():
             """, height=0, width=0)
             
         elif st.session_state.auth_step == "forgot_password":
-            st.markdown("""<div class="auth-card"><div class="card-icon">🔑</div><div class="card-title">Password Reset</div><div class="card-sub">Identity Verification required</div></div>""", unsafe_allow_html=True)
+            st.markdown("""<div class="auth-card"><div class="card-icon">ðŸ”‘</div><div class="card-title">Password Reset</div><div class="card-sub">Identity Verification required</div></div>""", unsafe_allow_html=True)
             reset_uid = st.text_input("reset_uid", placeholder="Enter your registered User ID", label_visibility="collapsed")
             send_otp_btn = st.button("SEND RECOVERY OTP", use_container_width=True)
             st.markdown('<div class="secondary-btn">', unsafe_allow_html=True)
-            if st.button("← Back to Login", key="cancel_reset", use_container_width=True):
+            if st.button("â† Back to Login", key="cancel_reset", use_container_width=True):
                 st.session_state.auth_step = "credentials"; st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -543,10 +567,10 @@ def login_page():
                         st.session_state.mfa_status_message, st.session_state.mfa_status_success = message, success
                     st.session_state.auth_step = "reset_mfa"; st.rerun()
                 else:
-                    st.error("⚠️ User ID not found in the system.")
+                    st.error("âš ï¸ User ID not found in the system.")
                     
         elif st.session_state.auth_step == "reset_mfa":
-            st.markdown("""<div class="auth-card"><div class="card-icon">📧</div><div class="card-title">Verify Reset</div><div class="card-sub">Enter the 6-digit OTP sent to your email</div></div>""", unsafe_allow_html=True)
+            st.markdown("""<div class="auth-card"><div class="card-icon">ðŸ“§</div><div class="card-title">Verify Reset</div><div class="card-sub">Enter the 6-digit OTP sent to your email</div></div>""", unsafe_allow_html=True)
             if st.session_state.get("mfa_status_success"): st.info(st.session_state.get("mfa_status_message", ""))
             else: st.warning(st.session_state.get("mfa_status_message", ""))
 
@@ -555,43 +579,44 @@ def login_page():
                 if reset_otp_input == st.session_state.get("reset_otp"):
                     st.session_state.auth_step = "new_password"; st.rerun()
                 else:
-                    st.error("⚠️ Invalid OTP Code.")
+                    st.error("âš ï¸ Invalid OTP Code.")
             st.markdown('<div class="secondary-btn">', unsafe_allow_html=True)
-            if st.button("← Cancel", key="btn_cancel_reset_mfa", use_container_width=True):
+            if st.button("â† Cancel", key="btn_cancel_reset_mfa", use_container_width=True):
                 st.session_state.auth_step = "credentials"; st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
             
         elif st.session_state.auth_step == "new_password":
-            st.markdown("""<div class="auth-card"><div class="card-icon">🔒</div><div class="card-title">New Password</div><div class="card-sub">Secure your account</div></div>""", unsafe_allow_html=True)
+            st.markdown("""<div class="auth-card"><div class="card-icon">ðŸ”’</div><div class="card-title">New Password</div><div class="card-sub">Secure your account</div></div>""", unsafe_allow_html=True)
             new_pwd = st.text_input("new_pwd", placeholder="New Password (min 8 chars)", type="password", label_visibility="collapsed")
             new_pwd_confirm = st.text_input("new_pwd_conf", placeholder="Confirm Password", type="password", label_visibility="collapsed")
             
             if st.button("UPDATE PASSWORD", key="btn_update_pwd", use_container_width=True):
-                if len(new_pwd) < 8: st.error("⚠️ Password must be at least 8 characters.")
-                elif new_pwd != new_pwd_confirm: st.error("⚠️ Passwords do not match.")
+                if len(new_pwd) < 8: st.error("âš ï¸ Password must be at least 8 characters.")
+                elif new_pwd != new_pwd_confirm: st.error("âš ï¸ Passwords do not match.")
                 else:
                     users, uid = load_users(), st.session_state.get("reset_user")
                     users[uid]["password"] = hash_password(new_pwd)
                     save_users(users)
                     log_action("Password Reset Successfully")
-                    st.success("✅ Password updated successfully!")
+                    st.success("âœ… Password updated successfully!")
                     time.sleep(2); st.session_state.auth_step = "credentials"; st.rerun()
 
 def back_button():
-    if st.button("← Back to Workspace", key=f"back_{st.session_state.active_tool}"):
+    if st.button("â† Back to Workspace", key=f"back_{st.session_state.active_tool}"):
+        if "tool" in st.query_params: del st.query_params["tool"]
         st.session_state.active_tool = None; st.rerun()
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  FORENSIC TOOLS
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 def tool_ftk():
     log_action("Opened Tool: Portable Acquisition & Triage")
     back_button()
-    st.markdown('<div class="tool-header"><div class="tool-title">🖥️ FTK Imager Alternative: Portable Acquisition</div><div class="tool-sub">RAM/Disk Cloning via USB Agent | Cloud Triage & Hashing</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="tool-header"><div class="tool-title">ðŸ–¥ï¸ FTK Imager Alternative: Portable Acquisition</div><div class="tool-sub">RAM/Disk Cloning via USB Agent | Cloud Triage & Hashing</div></div>', unsafe_allow_html=True)
     
-    st.info("💡 **Architectural Note:** Web browsers cannot legally or physically dump live RAM or clone raw physical hard drives. You must extract the evidence using the **Portable USB Agent** (Tab 1), then upload it to the **Cloud Dashboard** (Tab 2) for forensic analysis.")
+    st.info("ðŸ’¡ **Architectural Note:** Web browsers cannot legally or physically dump live RAM or clone raw physical hard drives. You must extract the evidence using the **Portable USB Agent** (Tab 1), then upload it to the **Cloud Dashboard** (Tab 2) for forensic analysis.")
     
-    tabs = st.tabs(["💾 1. Download Portable USB Agent", "🔍 2. Cloud Evidence Triage (Hex & Hash)"])
+    tabs = st.tabs(["ðŸ’¾ 1. Download Portable USB Agent", "ðŸ” 2. Cloud Evidence Triage (Hex & Hash)"])
     
     with tabs[0]:
         st.markdown("### The Portable Acquisition Agent")
@@ -637,7 +662,7 @@ Write-Host "You may now remove the USB drive and upload Evidence_Container.zip t
 Pause
 """
         st.download_button(
-            label="⬇️ Download Portable Agent (acquisition_agent.ps1)",
+            label="â¬‡ï¸ Download Portable Agent (acquisition_agent.ps1)",
             data=agent_script,
             file_name="acquisition_agent.ps1",
             mime="text/plain",
@@ -665,13 +690,13 @@ Pause
                 
             st.code("\n".join(hex_lines), language="text")
             
-            st.success("💡 **Forensic Tip:** Look at the ASCII column on the right. If the file starts with `4D 5A` (MZ), it is a Windows Executable. If it starts with `FF D8 FF E0`, it's a JPEG.")
+            st.success("ðŸ’¡ **Forensic Tip:** Look at the ASCII column on the right. If the file starts with `4D 5A` (MZ), it is a Windows Executable. If it starts with `FF D8 FF E0`, it's a JPEG.")
             log_tool_to_coc("FTK (Hex Viewer)", f"Performed deep Hex Preview on {hex_file.name}")
 
         st.markdown("---")
         st.markdown("### Evidence Integrity Verifier")
         ev_file = st.file_uploader("Upload Evidence File for Hashing", key="ftk_hash")
-        if ev_file and st.button("▶ Start Block Hashing", type="primary"):
+        if ev_file and st.button("â–¶ Start Block Hashing", type="primary"):
             import hashlib
             md5_hash, sha1_hash, sha256_hash = hashlib.md5(), hashlib.sha1(), hashlib.sha256()
             file_size, bytes_processed = ev_file.size, 0
@@ -684,7 +709,7 @@ Pause
                     bytes_processed += len(chunk)
                     if file_size > 0: progress_bar.progress(min(bytes_processed / file_size, 1.0))
             status_text.empty()
-            st.success(f"✅ Hashing Complete for `{ev_file.name}`")
+            st.success(f"âœ… Hashing Complete for `{ev_file.name}`")
             col1, col2, col3 = st.columns(3)
             col1.code(f"MD5\n{md5_hash.hexdigest()}")
             col2.code(f"SHA-1\n{sha1_hash.hexdigest()}")
@@ -694,7 +719,7 @@ Pause
 def tool_defender():
     log_action("Opened Tool: Microsoft Defender")
     back_button()
-    st.markdown("""<div class="tool-header"><div class="tool-title">🛡️ Microsoft Defender — EDR Scanner</div><div class="tool-sub">Endpoint Detection & Response | Live MpCmdRun.exe Integration</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="tool-header"><div class="tool-title">ðŸ›¡ï¸ Microsoft Defender â€” EDR Scanner</div><div class="tool-sub">Endpoint Detection & Response | Live MpCmdRun.exe Integration</div></div>""", unsafe_allow_html=True)
     
     st.markdown("### Real-Time Threat Analysis")
     st.write("This engine connects directly to the hidden Microsoft Defender Command Line Engine (`MpCmdRun.exe`) installed on the host operating system to perform live, military-grade malware scanning.")
@@ -709,13 +734,13 @@ def tool_defender():
             sample_path = r"C:\Users\Chennakeshavulu\.gemini\antigravity\scratch\zero_trust_workspace\test_malware.txt"
             with open(sample_path, "w") as f:
                 f.write(eicar_string)
-            st.success(f"⚠️ Harmless EICAR test file created at: {sample_path}")
+            st.success(f"âš ï¸ Harmless EICAR test file created at: {sample_path}")
             st.info("Upload this file on the left to test the Defender engine!")
             
     with col_up:
         uploaded_file = st.file_uploader("Upload Suspicious File for Background Scan", key="defender_file")
     
-    if uploaded_file and st.button("▶ Run Real Defender Scan", use_container_width=True, type="primary"):
+    if uploaded_file and st.button("â–¶ Run Real Defender Scan", use_container_width=True, type="primary"):
         import os, subprocess, uuid
         temp_dir = "uploads/temp_scans"
         os.makedirs(temp_dir, exist_ok=True)
@@ -732,11 +757,11 @@ def tool_defender():
                 
                 # Check results
                 if result.returncode == 0:
-                    st.success(f"✅ **CLEAN!** Microsoft Defender analyzed `{uploaded_file.name}` and found no malicious signatures.")
+                    st.success(f"âœ… **CLEAN!** Microsoft Defender analyzed `{uploaded_file.name}` and found no malicious signatures.")
                     log_action(f"Defender Scan Clean: {uploaded_file.name}")
                     log_tool_to_coc("Microsoft Defender", f"Scanned {uploaded_file.name}. Result: CLEAN (No threats found).")
                 else:
-                    st.error(f"🚨 **THREAT DETECTED!** Microsoft Defender flagged `{uploaded_file.name}` as malicious.")
+                    st.error(f"ðŸš¨ **THREAT DETECTED!** Microsoft Defender flagged `{uploaded_file.name}` as malicious.")
                     st.code(result.stdout, language="shell")
                     log_action(f"CRITICAL: Defender flagged {uploaded_file.name}")
                     log_tool_to_coc("Microsoft Defender", f"Scanned {uploaded_file.name}. Result: THREAT DETECTED. File quarantined by OS.")
@@ -754,7 +779,7 @@ def tool_defender():
 def tool_sandbox():
     log_action("Opened Tool: Secure Sandbox (Static)")
     back_button()
-    st.markdown("""<div class="tool-header"><div class="tool-title">📦 Reverse Engineering Engine (Static Sandbox)</div><div class="tool-sub">PE Header Parsing | Import Analysis | Capability Detection</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="tool-header"><div class="tool-title">ðŸ“¦ Reverse Engineering Engine (Static Sandbox)</div><div class="tool-sub">PE Header Parsing | Import Analysis | Capability Detection</div></div>""", unsafe_allow_html=True)
     
     st.write("This tool surgically tears open Windows Executables (`.exe`, `.dll`) without running them. By analyzing the 'Imports' (the Windows APIs the program requests), the engine can identify if the file is a Keylogger, Downloader, or Ransomware.")
     
@@ -765,14 +790,14 @@ def tool_sandbox():
         try:
             with open(r"C:\Windows\System32\find.exe", "rb") as f:
                 exe_bytes = f.read()
-            st.download_button("📥 Download Sample .exe", data=exe_bytes, file_name="suspicious_sample.exe", mime="application/x-msdownload", use_container_width=True)
+            st.download_button("ðŸ“¥ Download Sample .exe", data=exe_bytes, file_name="suspicious_sample.exe", mime="application/x-msdownload", use_container_width=True)
         except Exception:
             st.error("Could not read system file for sample.")
             
     with col_up:
         uploaded_file = st.file_uploader("Upload Windows Executable (.exe, .dll)", type=['exe','dll','sys'])
         
-    if uploaded_file and st.button("▶ Run Static Reverse Engineering", use_container_width=True, type="primary"):
+    if uploaded_file and st.button("â–¶ Run Static Reverse Engineering", use_container_width=True, type="primary"):
         import pefile
         import time
         import pandas as pd
@@ -784,14 +809,14 @@ def tool_sandbox():
                 pe = pefile.PE(data=uploaded_file.getvalue())
                 
                 # --- Basic Info ---
-                st.markdown("### 📊 PE Header Information")
+                st.markdown("### ðŸ“Š PE Header Information")
                 machine_type = "x64 (64-bit)" if pe.FILE_HEADER.Machine == 0x8664 else "x86 (32-bit)" if pe.FILE_HEADER.Machine == 0x14c else "Unknown"
                 
                 st.write(f"**Architecture:** {machine_type}")
                 st.write(f"**Number of Sections:** {pe.FILE_HEADER.NumberOfSections}")
                 
                 # --- Sections Analysis ---
-                st.markdown("### 🧩 Memory Sections")
+                st.markdown("### ðŸ§© Memory Sections")
                 sections_data = []
                 for section in pe.sections:
                     sections_data.append({
@@ -803,7 +828,7 @@ def tool_sandbox():
                 st.dataframe(pd.DataFrame(sections_data), hide_index=True, use_container_width=True)
                 
                 # --- Import Analysis ---
-                st.markdown("### 🧬 Extracted API Imports & Capabilities")
+                st.markdown("### ðŸ§¬ Extracted API Imports & Capabilities")
                 imports_data = []
                 threat_flags = []
                 
@@ -827,27 +852,27 @@ def tool_sandbox():
                 st.dataframe(pd.DataFrame(imports_data), hide_index=True, use_container_width=True, height=250)
                 
                 # --- Threat Verdict ---
-                st.markdown("### 🚨 AI Threat Verdict")
+                st.markdown("### ðŸš¨ AI Threat Verdict")
                 if threat_flags:
                     st.error("**MALICIOUS CAPABILITIES DETECTED:**")
                     for flag in set(threat_flags):
-                        st.markdown(f"- 🔴 {flag}")
+                        st.markdown(f"- ðŸ”´ {flag}")
                     log_action(f"Sandbox Reverse Eng: Flagged {uploaded_file.name} as Malicious")
                     log_tool_to_coc("Static Sandbox", f"Reversed {uploaded_file.name}. Found dangerous imports: {', '.join(set(threat_flags))}")
                 else:
-                    st.success("✅ **NO OBVIOUS THREATS DETECTED:** The imported APIs appear benign.")
+                    st.success("âœ… **NO OBVIOUS THREATS DETECTED:** The imported APIs appear benign.")
                     log_action(f"Sandbox Reverse Eng: Clean {uploaded_file.name}")
                     log_tool_to_coc("Static Sandbox", f"Reversed {uploaded_file.name}. No dangerous API imports detected.")
                     
             except pefile.PEFormatError:
-                st.error("❌ Invalid File Format! The uploaded file is not a valid Windows PE (.exe) file.")
+                st.error("âŒ Invalid File Format! The uploaded file is not a valid Windows PE (.exe) file.")
             except Exception as e:
-                st.error(f"❌ An error occurred during reverse engineering: {e}")
+                st.error(f"âŒ An error occurred during reverse engineering: {e}")
 
 def tool_volatility():
     log_action("Opened Tool: Volatility Memory Analysis")
     back_button()
-    st.markdown("""<div class="tool-header"><div class="tool-title">🧠 Volatility 3 — Memory Forensics</div><div class="tool-sub">Advanced RAM Analysis | Process Extraction | Rootkit Detection</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="tool-header"><div class="tool-title">ðŸ§  Volatility 3 â€” Memory Forensics</div><div class="tool-sub">Advanced RAM Analysis | Process Extraction | Rootkit Detection</div></div>""", unsafe_allow_html=True)
     
     st.write("Volatility is an advanced memory forensics framework. Upload a raw memory dump (`.raw`, `.mem`, `.vmem`) to analyze the live state of the suspect's computer at the time of extraction.")
     
@@ -857,13 +882,13 @@ def tool_volatility():
         st.markdown("<br>", unsafe_allow_html=True)
         import os
         sample_bytes = os.urandom(1024 * 50) + b"VOL_MARKER_WIN10_x64" + os.urandom(1024 * 50)
-        st.download_button("📥 Download Sample .raw", data=sample_bytes, file_name="suspect_memory.raw", mime="application/octet-stream", use_container_width=True)
+        st.download_button("ðŸ“¥ Download Sample .raw", data=sample_bytes, file_name="suspect_memory.raw", mime="application/octet-stream", use_container_width=True)
             
     with col_up:
         uploaded_ram = st.file_uploader("Upload RAM Dump File", type=["raw", "mem", "vmem"], key="ram_upload")
         
     if uploaded_ram:
-        st.success(f"✅ Memory Image Loaded: {uploaded_ram.name} (Size: {uploaded_ram.size} bytes)")
+        st.success(f"âœ… Memory Image Loaded: {uploaded_ram.name} (Size: {uploaded_ram.size} bytes)")
         st.markdown("### Volatility 3 Plugin Execution")
         
         col_plugin, col_run = st.columns([3, 1])
@@ -876,7 +901,7 @@ def tool_volatility():
             ])
         with col_run:
             st.markdown("<br>", unsafe_allow_html=True)
-            run_btn = st.button("▶ Execute Plugin", type="primary", use_container_width=True)
+            run_btn = st.button("â–¶ Execute Plugin", type="primary", use_container_width=True)
             
         if run_btn:
             import pandas as pd
@@ -907,12 +932,12 @@ def tool_volatility():
                     df = pd.DataFrame(data)
                     st.markdown("#### Network Connections (windows.netscan)")
                     st.dataframe(df, use_container_width=True, hide_index=True)
-                    st.warning("⚠️ **Suspicious Connection Detected:** PID 8832 (svchost.exe) communicating with foreign IP 185.112.44.19 on port 8080.")
+                    st.warning("âš ï¸ **Suspicious Connection Detected:** PID 8832 (svchost.exe) communicating with foreign IP 185.112.44.19 on port 8080.")
                     log_tool_to_coc("Volatility 3", f"Executed windows.netscan on {uploaded_ram.name}. Found anomalous outbound connection to 185.112.44.19.")
                     
                 elif plugin == "windows.malfind.Malfind":
                     st.markdown("#### Injected Code Detection (windows.malfind)")
-                    st.error("🚨 **Malware Injection Detected!**")
+                    st.error("ðŸš¨ **Malware Injection Detected!**")
                     st.code('''Process: svchost.exe Pid: 8832 Address: 0x240000
 Vad Tag: PAGE_EXECUTE_READWRITE
 Hexdump:
@@ -930,7 +955,7 @@ SuspectUser:1001:aad3b435b51404eeaad3b435b51404ee:8846f7eaee8fb117ad06bdd830b758
 def tool_cellebrite():
     log_action("Opened Tool: Cellebrite UFED XML Analyzer")
     back_button()
-    st.markdown("""<div class="tool-header"><div class="tool-title">📱 Cellebrite UFED — XML Report Analyzer</div><div class="tool-sub">Mobile Forensics | Message Extraction | Call Log Parsing</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="tool-header"><div class="tool-title">ðŸ“± Cellebrite UFED â€” XML Report Analyzer</div><div class="tool-sub">Mobile Forensics | Message Extraction | Call Log Parsing</div></div>""", unsafe_allow_html=True)
     
     st.write("Upload a raw **Cellebrite UFED XML Report** generated from a physical device extraction. The engine will parse the schema and map the suspect's SMS, Contacts, and Call Logs.")
     
@@ -960,12 +985,12 @@ def tool_cellebrite():
         <message><folder>Deleted</folder><sender>+1-555-9999</sender><timestamp>2026-09-29 20:10:00</timestamp><body>Understood. Burn this phone after the drop.</body></message>
     </messages>
 </ufed_report>"""
-        st.download_button("📥 Download Sample XML", data=sample_xml, file_name="Suspect_iPhone_Dump.xml", mime="application/xml", use_container_width=True)
+        st.download_button("ðŸ“¥ Download Sample XML", data=sample_xml, file_name="Suspect_iPhone_Dump.xml", mime="application/xml", use_container_width=True)
             
     with col_up:
         uploaded_file = st.file_uploader("Upload Cellebrite UFED XML Report", type=["xml"], key="ufed_xml")
         
-    if uploaded_file and st.button("▶ Parse UFED Report", use_container_width=True, type="primary"):
+    if uploaded_file and st.button("â–¶ Parse UFED Report", use_container_width=True, type="primary"):
         import xml.etree.ElementTree as ET
         import pandas as pd
         import time
@@ -979,7 +1004,7 @@ def tool_cellebrite():
                 # Metadata
                 metadata = root.find('metadata')
                 if metadata is not None:
-                    st.markdown("### 📱 Device Profile")
+                    st.markdown("### ðŸ“± Device Profile")
                     col1, col2, col3 = st.columns(3)
                     col1.metric("Device Model", metadata.findtext('device', 'Unknown'))
                     col2.metric("Extraction Type", metadata.findtext('extraction_type', 'Unknown'))
@@ -987,7 +1012,7 @@ def tool_cellebrite():
                     
                 st.markdown("---")
                 
-                tab1, tab2, tab3 = st.tabs(["💬 Messages", "📞 Call Logs", "📒 Contacts"])
+                tab1, tab2, tab3 = st.tabs(["ðŸ’¬ Messages", "ðŸ“ž Call Logs", "ðŸ“’ Contacts"])
                 
                 with tab1:
                     messages = []
@@ -1042,13 +1067,13 @@ def tool_cellebrite():
                     else:
                         st.info("No contacts found.")
                         
-                st.success("✅ Cellebrite XML Parsing Complete.")
+                st.success("âœ… Cellebrite XML Parsing Complete.")
                 log_action(f"Cellebrite UFED: Parsed {uploaded_file.name}")
                 
             except ET.ParseError:
-                st.error("❌ Invalid XML File. Please ensure this is a valid Cellebrite UFED XML Export.")
+                st.error("âŒ Invalid XML File. Please ensure this is a valid Cellebrite UFED XML Export.")
             except Exception as e:
-                st.error(f"❌ Parsing Error: {e}")
+                st.error(f"âŒ Parsing Error: {e}")
 
 def tool_autopsy():
     log_action("Opened Tool: Autopsy (Web GUI)")
@@ -1065,22 +1090,22 @@ def tool_autopsy():
         col1, col2, col3, col4 = st.columns([1, 2, 2, 1])
         with col2:
             # Using a public domain dog icon to mimic the Autopsy bloodhound
-            st.markdown("<h1 style='text-align: center; font-size: 80px; margin-bottom: -20px;'>🐶</h1>", unsafe_allow_html=True)
-            st.markdown("<h1 style='text-align: center; font-family: Arial; font-weight: 900; color: #333;'>Autopsy®</h1>", unsafe_allow_html=True)
+            st.markdown("<h1 style='text-align: center; font-size: 80px; margin-bottom: -20px;'>ðŸ¶</h1>", unsafe_allow_html=True)
+            st.markdown("<h1 style='text-align: center; font-family: Arial; font-weight: 900; color: #333;'>AutopsyÂ®</h1>", unsafe_allow_html=True)
             st.markdown("<p style='text-align: center; font-size: 12px; letter-spacing: 2px; color: #666;'>OPEN | EXTENSIBLE | FAST</p>", unsafe_allow_html=True)
             
         with col3:
             st.markdown("<br><br>", unsafe_allow_html=True)
-            if st.button("📄➕ New Case", use_container_width=True):
+            if st.button("ðŸ“„âž• New Case", use_container_width=True):
                 st.session_state.autopsy_step = "new_case_1"
                 st.rerun()
             st.markdown("<br>", unsafe_allow_html=True)
-            st.button("📄➡️ Open Recent Case", use_container_width=True)
+            st.button("ðŸ“„âž¡ï¸ Open Recent Case", use_container_width=True)
             st.markdown("<br>", unsafe_allow_html=True)
-            st.button("📄📂 Open Case", use_container_width=True)
+            st.button("ðŸ“„ðŸ“‚ Open Case", use_container_width=True)
             
     elif st.session_state.autopsy_step == "new_case_1":
-        st.markdown("### 🐶 New Case Information")
+        st.markdown("### ðŸ¶ New Case Information")
         st.markdown("---")
         
         col_nav, col_main = st.columns([1, 3])
@@ -1111,7 +1136,7 @@ def tool_autopsy():
             with col_btn:
                 st.markdown("<br>", unsafe_allow_html=True)
                 if st.button("Browse"):
-                    st.warning("🌐 **Web Edition:** Please type your Base Directory path directly into the text box.")
+                    st.warning("ðŸŒ **Web Edition:** Please type your Base Directory path directly into the text box.")
                 
             st.radio("Case Type:", ["Single-User", "Multi-User"], horizontal=True)
             
@@ -1139,7 +1164,7 @@ def tool_autopsy():
             st.button("Help")
             
     elif st.session_state.autopsy_step == "new_case_2":
-        st.markdown("### 🐶 New Case Information")
+        st.markdown("### ðŸ¶ New Case Information")
         st.markdown("---")
         col_nav, col_main = st.columns([1, 3])
         with col_nav:
@@ -1208,18 +1233,18 @@ def tool_autopsy():
             
     elif st.session_state.autopsy_step == "ingest_engine":
         # The actual backend forensics engine we built earlier!
-        st.markdown("### 🗂️ Autopsy Workspace (Case Active)")
-        if st.button("🚪 Close Case & Return to Welcome Screen"):
+        st.markdown("### ðŸ—‚ï¸ Autopsy Workspace (Case Active)")
+        if st.button("ðŸšª Close Case & Return to Welcome Screen"):
             st.session_state.autopsy_step = "welcome"
             st.rerun()
         st.markdown("---")
-        tab1, tab2 = st.tabs(["🧩 Raw Binary Carver", "⏱️ Sleuth Kit Timeline Analyzer"])
+        tab1, tab2 = st.tabs(["ðŸ§© Raw Binary Carver", "â±ï¸ Sleuth Kit Timeline Analyzer"])
         
         with tab1:
             st.write("Upload a raw evidence file. The Autopsy Ingest Modules will run automatically in the background to carve strings and hidden files.")
             evidence_file = st.file_uploader("Add Data Source (Raw Binary Image)", key="autopsy_upload")
             
-            if evidence_file and st.button("▶ Run Autopsy Ingest Modules", use_container_width=True, type="primary"):
+            if evidence_file and st.button("â–¶ Run Autopsy Ingest Modules", use_container_width=True, type="primary"):
                 import re, time
                 evidence_file.seek(0)
                 raw_data = evidence_file.read()
@@ -1270,11 +1295,11 @@ def tool_autopsy():
                 
                 progress_bar.progress(100)
                 status_text.empty()
-                st.success(f"✅ Autopsy Analysis Complete for `{evidence_file.name}`")
+                st.success(f"âœ… Autopsy Analysis Complete for `{evidence_file.name}`")
                 
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.markdown("### 📧 Extracted Text Artifacts")
+                    st.markdown("### ðŸ“§ Extracted Text Artifacts")
                     st.write("**Emails Found:**")
                     if found_emails:
                         for email in found_emails: st.code(email)
@@ -1287,7 +1312,7 @@ def tool_autopsy():
                         st.write("No IPs found.")
                         
                 with col2:
-                    st.markdown("### 🗂️ Carved File Signatures")
+                    st.markdown("### ðŸ—‚ï¸ Carved File Signatures")
                     st.write("Autopsy scanned the raw binary for magic bytes:")
                     st.metric("JPEG Images Found", jpeg_count)
                     st.metric("ZIP/DOCX Archives Found", zip_count)
@@ -1306,12 +1331,12 @@ burner_contacts.xlsx,C:\\Users\\Suspect\\Desktop\\,12000,2026-09-29 14:00:00,202
 browser_history.sqlite,C:\\Users\\Suspect\\AppData\\Local\\,1048576,2026-01-15 08:00:00,2026-09-30 09:00:00,2026-09-30 09:00:00,Allocated
 IMG_4921.jpg,C:\\Users\\Suspect\\Pictures\\,3500000,2026-09-29 18:00:00,2026-09-29 18:00:00,2026-09-29 18:00:00,Deleted
 system.dll,C:\\Windows\\System32\\,999999,2024-01-01 00:00:00,2024-01-01 00:00:00,2026-09-30 11:00:00,Allocated"""
-                st.download_button("📥 Download Sample CSV", data=sample_csv, file_name="mft_timeline.csv", mime="text/csv", use_container_width=True)
+                st.download_button("ðŸ“¥ Download Sample CSV", data=sample_csv, file_name="mft_timeline.csv", mime="text/csv", use_container_width=True)
             
             with col_up:
                 timeline_file = st.file_uploader("Upload Forensic Timeline (.csv)", type=["csv"], key="timeline_upload")
                 
-            if timeline_file and st.button("▶ Run MFT Analysis", use_container_width=True, type="primary"):
+            if timeline_file and st.button("â–¶ Run MFT Analysis", use_container_width=True, type="primary"):
                 import pandas as pd
                 import time
                 with st.spinner("Parsing Master File Table and analyzing MAC timestamps..."):
@@ -1319,7 +1344,7 @@ system.dll,C:\\Windows\\System32\\,999999,2024-01-01 00:00:00,2024-01-01 00:00:0
                     try:
                         df = pd.read_csv(timeline_file)
                         
-                        st.markdown("### ⏱️ Master File Table Analysis")
+                        st.markdown("### â±ï¸ Master File Table Analysis")
                         st.write("Below is the reconstructed file system timeline. Files flagged by The Sleuth Kit as **Deleted** are highlighted in red, allowing you to instantly triage destroyed evidence.")
                         
                         # Style function to highlight deleted rows
@@ -1332,7 +1357,7 @@ system.dll,C:\\Windows\\System32\\,999999,2024-01-01 00:00:00,2024-01-01 00:00:0
                         
                         deleted_count = len(df[df['Status'].str.strip().str.lower() == 'deleted'])
                         if deleted_count > 0:
-                            st.error(f"🚨 **WARNING:** {deleted_count} deleted file(s) recovered from Unallocated Space!")
+                            st.error(f"ðŸš¨ **WARNING:** {deleted_count} deleted file(s) recovered from Unallocated Space!")
                             
                         log_tool_to_coc("Sleuth Kit MFT Analyzer", f"Analyzed {timeline_file.name}. Found {len(df)} total files, {deleted_count} deleted files recovered.")
                         log_action("Sleuth Kit Timeline Parsed")
@@ -1343,21 +1368,21 @@ system.dll,C:\\Windows\\System32\\,999999,2024-01-01 00:00:00,2024-01-01 00:00:0
 def tool_exiftool():
     log_action("Opened Tool: Exif Metadata Extractor")
     back_button()
-    st.markdown("""<div class="tool-header"><div class="tool-title">📷 Exif Metadata Extractor</div><div class="tool-sub">Image Forensics | GPS Location Mapping (Powered by Python ExifRead)</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="tool-header"><div class="tool-title">ðŸ“· Exif Metadata Extractor</div><div class="tool-sub">Image Forensics | GPS Location Mapping (Powered by Python ExifRead)</div></div>""", unsafe_allow_html=True)
     
     st.markdown("### Backend Image Scanner")
     uploaded_file = st.file_uploader("Upload Image (JPG/TIFF) for Metadata Extraction", type=["jpg", "jpeg", "tiff"])
     
-    if uploaded_file and st.button("▶ Extract Real EXIF Data", use_container_width=True, type="primary"):
+    if uploaded_file and st.button("â–¶ Extract Real EXIF Data", use_container_width=True, type="primary"):
         import exifread
         with st.spinner("Extracting EXIF data..."):
             tags = exifread.process_file(uploaded_file, details=False)
             if not tags:
-                st.warning("⚠️ No EXIF metadata found in this image. (Note: Platforms like WhatsApp and Facebook automatically strip GPS data from photos for privacy).")
+                st.warning("âš ï¸ No EXIF metadata found in this image. (Note: Platforms like WhatsApp and Facebook automatically strip GPS data from photos for privacy).")
                 log_action(f"ExifTool: No metadata in {uploaded_file.name}")
                 log_tool_to_coc("Exif Metadata Extractor", f"Scanned {uploaded_file.name}. Result: No EXIF/GPS metadata found.")
             else:
-                st.success(f"✅ Found {len(tags)} EXIF tags! Metadata parsed.")
+                st.success(f"âœ… Found {len(tags)} EXIF tags! Metadata parsed.")
                 exif_data = {tag: str(tags[tag]) for tag in tags.keys() if tag not in ('JPEGThumbnail', 'TIFFThumbnail', 'Filename', 'EXIF MakerNote')}
                 st.json(exif_data)
                 
@@ -1380,7 +1405,7 @@ def tool_exiftool():
                         lon = convert_to_degrees(gps_lon)
                         if gps_lon_ref.values != 'E': lon = -lon
                         
-                        st.info(f"📍 **GPS Coordinates Found!** Latitude: {lat:.5f}, Longitude: {lon:.5f}")
+                        st.info(f"ðŸ“ **GPS Coordinates Found!** Latitude: {lat:.5f}, Longitude: {lon:.5f}")
                         
                         import pandas as pd
                         map_df = pd.DataFrame({'lat': [lat], 'lon': [lon]})
@@ -1391,7 +1416,7 @@ def tool_exiftool():
                         st.error(f"Could not parse GPS coordinates: {e}")
                         log_tool_to_coc("Exif Metadata Extractor", f"Extracted {len(tags)} tags. GPS parsing failed.")
                 else:
-                    st.info("ℹ️ No GPS coordinates found in the EXIF data.")
+                    st.info("â„¹ï¸ No GPS coordinates found in the EXIF data.")
                     log_tool_to_coc("Exif Metadata Extractor", f"Extracted {len(tags)} EXIF tags. No GPS data found.")
                 
                 log_action(f"Extracted EXIF from {uploaded_file.name}")
@@ -1412,7 +1437,7 @@ def tool_exiftool():
                     try:
                         doc_html += f"""
     <div style="background-color: #ffefc4; padding: 10px; border-left: 5px solid #f39c12; margin: 15px 0;">
-        <h3 style="margin-top: 0; color: #d35400;">📍 GPS COORDINATES FOUND</h3>
+        <h3 style="margin-top: 0; color: #d35400;">ðŸ“ GPS COORDINATES FOUND</h3>
         <b>Latitude:</b> {lat:.5f}<br>
         <b>Longitude:</b> {lon:.5f}<br>
         <b>Google Maps Link:</b> <a href="https://maps.google.com/?q={lat},{lon}" style="color: blue; text-decoration: underline;">https://maps.google.com/?q={lat},{lon}</a><br>
@@ -1444,7 +1469,7 @@ def tool_exiftool():
                 
                 st.markdown("---")
                 st.download_button(
-                    label="📄 Download Forensic Report (.doc)",
+                    label="ðŸ“„ Download Forensic Report (.doc)",
                     data=doc_html,
                     file_name=f"Forensic_EXIF_Report_{uploaded_file.name}.doc",
                     mime="application/msword",
@@ -1455,20 +1480,20 @@ def tool_exiftool():
 def tool_virustotal():
     log_action("Opened Tool: VirusTotal API")
     back_button()
-    st.markdown("""<div class="tool-header"><div class="tool-title">🌐 VirusTotal API — Threat Intelligence</div><div class="tool-sub">Real-time Hash, IP, and Domain Reputation Scanning</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="tool-header"><div class="tool-title">ðŸŒ VirusTotal API â€” Threat Intelligence</div><div class="tool-sub">Real-time Hash, IP, and Domain Reputation Scanning</div></div>""", unsafe_allow_html=True)
     
     st.markdown("### Web-Native API Scanner")
     
     # Hide the API key box if it's already configured in the backend
     if VIRUSTOTAL_API_KEY.strip():
         api_key = VIRUSTOTAL_API_KEY
-        st.info("🔒 API Connection Secured: Key loaded from backend configuration.")
+        st.info("ðŸ”’ API Connection Secured: Key loaded from backend configuration.")
     else:
         api_key = st.text_input("Enter VirusTotal API Key", type="password", help="You can permanently save this in the app.py configuration block.")
         
     ioc = st.text_input("Enter IP Address, Hash, or Domain to Scan", placeholder="e.g. 185.112.44.19")
     
-    if st.button("▶ Run Real VirusTotal Scan", use_container_width=True, type="primary"):
+    if st.button("â–¶ Run Real VirusTotal Scan", use_container_width=True, type="primary"):
         if not api_key:
             st.error("Please enter a VirusTotal API key.")
         elif not ioc:
@@ -1484,21 +1509,21 @@ def tool_virustotal():
                         data = response.json()
                         stats = data['data']['attributes']['last_analysis_stats']
                         
-                        st.markdown("### 📊 Aggregate Threat Score")
+                        st.markdown("### ðŸ“Š Aggregate Threat Score")
                         col1, col2, col3 = st.columns(3)
                         col1.metric("Malicious", stats['malicious'])
                         col2.metric("Suspicious", stats['suspicious'])
                         col3.metric("Undetected", stats['undetected'])
                         
                         if stats['malicious'] > 0:
-                            st.error(f"🚨 **CRITICAL RISK:** {stats['malicious']} security vendors flagged this IOC as malicious!")
+                            st.error(f"ðŸš¨ **CRITICAL RISK:** {stats['malicious']} security vendors flagged this IOC as malicious!")
                             log_tool_to_coc("VirusTotal API", f"Scanned IOC {ioc}. Result: MALICIOUS by {stats['malicious']} vendors.")
                         else:
-                            st.success(f"✅ **CLEAN:** No vendors flagged this.")
+                            st.success(f"âœ… **CLEAN:** No vendors flagged this.")
                             log_tool_to_coc("VirusTotal API", f"Scanned IOC {ioc}. Result: Clean.")
                             
                         # Extract detailed vendor breakdown
-                        st.markdown("### 🛡️ Detailed Vendor Breakdown")
+                        st.markdown("### ðŸ›¡ï¸ Detailed Vendor Breakdown")
                         vendor_results = data['data']['attributes']['last_analysis_results']
                         vendor_data = []
                         
@@ -1508,11 +1533,11 @@ def tool_virustotal():
                             
                             # Make the UI pretty depending on the status
                             if status == "MALICIOUS":
-                                status_emoji = "🔴 MALICIOUS"
+                                status_emoji = "ðŸ”´ MALICIOUS"
                             elif status == "SUSPICIOUS":
-                                status_emoji = "🟡 SUSPICIOUS"
+                                status_emoji = "ðŸŸ¡ SUSPICIOUS"
                             else:
-                                status_emoji = "🟢 UNDETECTED"
+                                status_emoji = "ðŸŸ¢ UNDETECTED"
                                 
                             vendor_data.append({
                                 "Antivirus Engine": vendor,
@@ -1534,7 +1559,7 @@ def tool_virustotal():
 def tool_wireshark():
     log_action("Opened Tool: Wireshark (Web-Native)")
     back_button()
-    st.markdown('<div class="tool-header"><div class="tool-title">🦈 Wireshark — Network Analyzer</div><div class="tool-sub">PCAP Parsing | Powered by Scapy</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="tool-header"><div class="tool-title">ðŸ¦ˆ Wireshark â€” Network Analyzer</div><div class="tool-sub">PCAP Parsing | Powered by Scapy</div></div>', unsafe_allow_html=True)
     
     st.markdown("### Backend PCAP Analyzer")
     st.write("Upload a raw `.pcap` capture file. The backend server will mathematically parse the network packets and extract the top communicating IP addresses.")
@@ -1558,14 +1583,14 @@ def tool_wireshark():
             with open(temp_path, "rb") as f:
                 pcap_bytes = f.read()
             os.remove(temp_path)
-            st.download_button("📥 Download Sample PCAP", data=pcap_bytes, file_name="Suspicious_Traffic.pcap", mime="application/vnd.tcpdump.pcap", use_container_width=True)
+            st.download_button("ðŸ“¥ Download Sample PCAP", data=pcap_bytes, file_name="Suspicious_Traffic.pcap", mime="application/vnd.tcpdump.pcap", use_container_width=True)
         except Exception as e:
             st.error(f"Error generating PCAP: {e}")
                 
     with col_up:
         pcap_file = st.file_uploader("Upload Network Capture (.pcap)", type=["pcap"])
     
-    if pcap_file and st.button("▶ Analyze PCAP File", use_container_width=True, type="primary"):
+    if pcap_file and st.button("â–¶ Analyze PCAP File", use_container_width=True, type="primary"):
         import struct
         from collections import Counter
         
@@ -1600,7 +1625,7 @@ def tool_wireshark():
                             p_name = "TCP" if proto == 6 else "UDP" if proto == 17 else "ICMP" if proto == 1 else str(proto)
                             packets.append((src_ip, dst_ip, p_name))
                 
-                st.success(f"✅ Successfully parsed {len(packets)} IPv4 packets!")
+                st.success(f"âœ… Successfully parsed {len(packets)} IPv4 packets!")
                 
                 if packets:
                     st.subheader("Top Communicating IP Addresses")
@@ -1617,7 +1642,7 @@ def tool_wireshark():
 def tool_weblog():
     log_action("Opened Tool: Web Log Analyzer")
     back_button()
-    st.markdown('<div class="tool-header"><div class="tool-title">📊 Web Log Analyzer</div><div class="tool-sub">SIEM Forensics | Apache & Nginx Parse Engine</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="tool-header"><div class="tool-title">ðŸ“Š Web Log Analyzer</div><div class="tool-sub">SIEM Forensics | Apache & Nginx Parse Engine</div></div>', unsafe_allow_html=True)
     st.caption("100% REAL TOOL: Upload raw web server access logs to parse traffic, graph IP origins, and hunt for SQLi/XSS attack signatures using regex.")
     
     col_up, col_gen = st.columns([3, 1])
@@ -1633,7 +1658,7 @@ def tool_weblog():
             '114.55.20.19 - - [10/Oct/2026:14:01:15 -0700] "POST /api/search?q=../../../../etc/passwd HTTP/1.1" 404 122\n'
             '10.0.0.42 - - [10/Oct/2026:14:05:00 -0700] "GET /logout.php HTTP/1.1" 302 0\n'
         )
-        st.download_button("📥 Download Sample access.log", data=sample_log, file_name="access.log", mime="text/plain", use_container_width=True)
+        st.download_button("ðŸ“¥ Download Sample access.log", data=sample_log, file_name="access.log", mime="text/plain", use_container_width=True)
             
     with col_up:
         uploaded_file = st.file_uploader("Upload access.log (Apache/Nginx format)", type=["log", "txt"])
@@ -1664,18 +1689,18 @@ def tool_weblog():
                 df = pd.DataFrame(parsed_data)
                 df['status'] = df['status'].astype(int)
                 
-                st.success(f"✅ Successfully parsed {len(df)} log entries.")
+                st.success(f"âœ… Successfully parsed {len(df)} log entries.")
                 
                 colA, colB, colC = st.columns(3)
                 colA.metric("Total Requests", len(df))
                 colB.metric("Unique IP Addresses", df['ip'].nunique())
                 colC.metric("HTTP 404/403 Errors", len(df[df['status'] >= 400]))
                 
-                st.markdown("### 📡 Top Attacker IP Addresses")
+                st.markdown("### ðŸ“¡ Top Attacker IP Addresses")
                 ip_counts = df['ip'].value_counts()
                 st.bar_chart(ip_counts)
                 
-                st.markdown("### 🚨 Threat Intelligence (Malicious Payloads)")
+                st.markdown("### ðŸš¨ Threat Intelligence (Malicious Payloads)")
                 # Hunt for SQLi, XSS, Path Traversal
                 threat_pattern = re.compile(r'(union select|or \'1\'=\'1|<script>|\.\./\.\.)', re.IGNORECASE)
                 
@@ -1683,23 +1708,23 @@ def tool_weblog():
                 threats = df[df['Threat_Flag'] == "Malicious"]
                 
                 if not threats.empty:
-                    st.error(f"⚠️ Detected {len(threats)} malicious requests targeting your server!")
+                    st.error(f"âš ï¸ Detected {len(threats)} malicious requests targeting your server!")
                     st.dataframe(threats[['date', 'ip', 'method', 'url', 'status']], use_container_width=True)
                     log_tool_to_coc("Web Log Analyzer", f"Parsed {len(df)} logs. Flagged {len(threats)} malicious payloads (SQLi/XSS).")
                 else:
-                    st.success("✅ No obvious malicious payloads detected in the URL parameters.")
+                    st.success("âœ… No obvious malicious payloads detected in the URL parameters.")
             else:
                 st.error("No valid log entries found. Ensure file matches Apache combined format.")
 def tool_sleuthkit():
     log_action("Opened Tool: Autopsy / Sleuth Kit (Web-Native)")
     back_button()
-    st.markdown('<div class="tool-header"><div class="tool-title">🕵️ Autopsy / Sleuth Kit (Web-Native)</div><div class="tool-sub">Binary Analysis | String & Artifact Carving Engine</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="tool-header"><div class="tool-title">ðŸ•µï¸ Autopsy / Sleuth Kit (Web-Native)</div><div class="tool-sub">Binary Analysis | String & Artifact Carving Engine</div></div>', unsafe_allow_html=True)
     
     st.write("Upload a raw evidence file (like the `.dd` image created by the Portable Agent). The Autopsy Ingest Engine will carve through the raw binary data to extract hidden artifacts, emails, IP addresses, and deleted file signatures.")
     
     evidence_file = st.file_uploader("Upload Evidence File for Analysis", key="autopsy_upload")
     
-    if evidence_file and st.button("▶ Run Autopsy Ingest Modules", use_container_width=True, type="primary"):
+    if evidence_file and st.button("â–¶ Run Autopsy Ingest Modules", use_container_width=True, type="primary"):
         import re
         import time
         
@@ -1739,12 +1764,12 @@ def tool_sleuthkit():
         progress_bar.progress(100)
         status_text.empty()
         
-        st.success(f"✅ Autopsy Analysis Complete for `{evidence_file.name}`")
+        st.success(f"âœ… Autopsy Analysis Complete for `{evidence_file.name}`")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("### 📧 Extracted Text Artifacts")
+            st.markdown("### ðŸ“§ Extracted Text Artifacts")
             st.write("**Emails Found:**")
             if found_emails:
                 for email in found_emails:
@@ -1760,7 +1785,7 @@ def tool_sleuthkit():
                 st.write("No IPs found in binary data.")
                 
         with col2:
-            st.markdown("### 🗂️ Carved File Signatures")
+            st.markdown("### ðŸ—‚ï¸ Carved File Signatures")
             st.write("Autopsy scanned the raw binary for magic bytes to find hidden/deleted files:")
             st.metric("JPEG Images Found", jpeg_count)
             st.metric("ZIP/DOCX Archives Found", zip_count)
@@ -1771,7 +1796,7 @@ def tool_sleuthkit():
 def tool_osint():
     log_action("Opened Tool: OSINT Geo-Tracker")
     back_button()
-    st.markdown('<div class="tool-header"><div class="tool-title">🌍 OSINT Geo-Tracker</div><div class="tool-sub">Live Intelligence | IP & Domain Geolocation</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="tool-header"><div class="tool-title">ðŸŒ OSINT Geo-Tracker</div><div class="tool-sub">Live Intelligence | IP & Domain Geolocation</div></div>', unsafe_allow_html=True)
     st.caption("100% REAL TOOL: Enter a live IP address or Domain to trace its physical location and ISP via public OSINT databases.")
     
     target = st.text_input("Enter Target IP or Domain (e.g., 8.8.8.8 or github.com)", "8.8.8.8")
@@ -1790,43 +1815,43 @@ def tool_osint():
                 data = json.loads(response.read().decode())
             
             if data.get("status") == "success":
-                st.success(f"✅ Trace Complete! Target resolved to IP: {data.get('query')}")
+                st.success(f"âœ… Trace Complete! Target resolved to IP: {data.get('query')}")
                 
                 col1, col2 = st.columns([1, 1])
                 with col1:
                     st.markdown(f"""<div class='stat-box'>
-                    <h4 style="margin-top:0; color:#38bdf8;">🌐 Network & ISP</h4>
+                    <h4 style="margin-top:0; color:#38bdf8;">ðŸŒ Network & ISP</h4>
                     <b>ISP:</b> {data.get('isp')}<br>
                     <b>Organization:</b> {data.get('org')}<br>
                     <b>ASN:</b> {data.get('as')}
                     </div>""", unsafe_allow_html=True)
                 with col2:
                     st.markdown(f"""<div class='stat-box'>
-                    <h4 style="margin-top:0; color:#38bdf8;">📍 Physical Location</h4>
+                    <h4 style="margin-top:0; color:#38bdf8;">ðŸ“ Physical Location</h4>
                     <b>Country:</b> {data.get('country')}<br>
                     <b>Region:</b> {data.get('regionName')}, {data.get('city')}<br>
                     <b>Zip/Postal:</b> {data.get('zip', 'N/A')}
                     </div>""", unsafe_allow_html=True)
                 
-                st.markdown("<br>### 🗺️ Live Target Geolocation", unsafe_allow_html=True)
+                st.markdown("<br>### ðŸ—ºï¸ Live Target Geolocation", unsafe_allow_html=True)
                 df = pd.DataFrame({'lat': [data.get('lat')], 'lon': [data.get('lon')]})
                 st.map(df, zoom=4)
                 
                 log_action(f"Ran OSINT trace on {target} (Resolved: {data.get('query')})")
                 log_tool_to_coc("OSINT Geo-Tracker", f"Traced target {target} to {data.get('city')}, {data.get('country')}. ISP: {data.get('isp')}.")
             else:
-                st.error(f"❌ Trace failed: {data.get('message', 'Unknown Error')}")
+                st.error(f"âŒ Trace failed: {data.get('message', 'Unknown Error')}")
                 
         except Exception as e:
-            st.error(f"⚠️ Network error during OSINT lookup. Check internet connection. Details: {e}")
+            st.error(f"âš ï¸ Network error during OSINT lookup. Check internet connection. Details: {e}")
 
 def tool_steganography():
     log_action("Opened Tool: Steganography Extractor")
     back_button()
-    st.markdown('<div class="tool-header"><div class="tool-title">🎭 Steganography Extractor</div><div class="tool-sub">Deep Pixel Forensics | LSB Decoding Engine</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="tool-header"><div class="tool-title">ðŸŽ­ Steganography Extractor</div><div class="tool-sub">Deep Pixel Forensics | LSB Decoding Engine</div></div>', unsafe_allow_html=True)
     st.caption("100% REAL TOOL: Upload an image to analyze its Least Significant Bits (LSB). Hackers use LSB steganography to invisibly hide secret passwords or malicious payloads inside the pixels of normal-looking photos.")
     
-    tab1, tab2 = st.tabs(["🔓 Extract Hidden Data", "🔒 Hide Data (Generate Evidence)"])
+    tab1, tab2 = st.tabs(["ðŸ”“ Extract Hidden Data", "ðŸ”’ Hide Data (Generate Evidence)"])
     
     with tab2:
         st.markdown("### Generate Suspect Evidence")
@@ -1875,16 +1900,16 @@ def tool_steganography():
                             
                     buf = io.BytesIO()
                     img.save(buf, format="PNG")
-                    st.success("✅ Secret successfully injected! The image looks identical to the human eye.")
+                    st.success("âœ… Secret successfully injected! The image looks identical to the human eye.")
                     st.download_button(label="Download Weaponized Image", data=buf.getvalue(), file_name="suspect_evidence.png", mime="image/png")
             except Exception as e:
                 st.error(f"Failed to process image. Make sure Pillow is installed. Error: {e}")
 
     with tab1:
-        st.markdown("### 🔓 Forensic LSB Extraction")
+        st.markdown("### ðŸ”“ Forensic LSB Extraction")
         suspect_image = st.file_uploader("Upload Suspect Image (PNG)", type=["png"], key="stego_extract")
         
-        if suspect_image and st.button("▶ Run LSB Pixel Extraction", type="primary"):
+        if suspect_image and st.button("â–¶ Run LSB Pixel Extraction", type="primary"):
             import time
             
             st.info("Scanning pixel matrices for LSB anomalies...")
@@ -1930,7 +1955,7 @@ def tool_steganography():
                 
                 # Validate that we found coherent data
                 if len(decoded_data) > 0 and len(decoded_data) < 5000 and all(32 <= ord(c) < 127 for c in decoded_data):
-                    st.error("🚨 **HIDDEN DATA DETECTED IN IMAGE PIXELS!**")
+                    st.error("ðŸš¨ **HIDDEN DATA DETECTED IN IMAGE PIXELS!**")
                     st.markdown(f"""
                     <div class="stat-box" style="border: 2px solid #ef4444; background: rgba(239,68,68,0.1);">
                     <h4 style="color:#ef4444; margin:0;">Extracted Payload:</h4>
@@ -1940,7 +1965,7 @@ def tool_steganography():
                     log_tool_to_coc("Steganography Extractor", f"Detected hidden LSB payload in '{suspect_image.name}': {decoded_data}")
                     log_action("Steganography Payload Found")
                 else:
-                    st.success("✅ Image appears clean. No coherent hidden LSB data found.")
+                    st.success("âœ… Image appears clean. No coherent hidden LSB data found.")
                     
             except Exception as e:
                 st.error(f"Error processing image: {e}")
@@ -1948,7 +1973,7 @@ def tool_steganography():
 def tool_hashcat():
     log_action("Opened Tool: Hashcat Offline Cracker")
     back_button()
-    st.markdown('<div class="tool-header"><div class="tool-title">🔐 Hashcat (Python Engine)</div><div class="tool-sub">Offline Cryptographic Hash Cracking | Dictionary Attack</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="tool-header"><div class="tool-title">ðŸ” Hashcat (Python Engine)</div><div class="tool-sub">Offline Cryptographic Hash Cracking | Dictionary Attack</div></div>', unsafe_allow_html=True)
     st.caption("100% REAL TOOL: Simulates offline password cracking. Enter a raw cryptographic hash (MD5, SHA1, SHA256) extracted from a suspect's machine, and the Python `hashlib` engine will brute-force it against a dictionary.")
     
     col1, col2 = st.columns([3, 1])
@@ -1965,11 +1990,11 @@ def tool_hashcat():
         hash_type = st.selectbox("Hash Algorithm:", ["MD5", "SHA1", "SHA256"], index=0 if st.session_state.get("hash_type", "MD5")=="MD5" else 0)
     
     # Dictionary Configuration
-    st.markdown("#### 📚 Dictionary Configuration")
+    st.markdown("#### ðŸ“š Dictionary Configuration")
     st.write("By default, the engine will download and use a top 10,000 real-world password list. You can also upload your own custom wordlist here.")
     custom_dicts = st.file_uploader("Upload Custom Dictionaries (.txt format)", type=["txt"], accept_multiple_files=True)
     
-    if st.button("▶ Initialize Cracking Engine", type="primary"):
+    if st.button("â–¶ Initialize Cracking Engine", type="primary"):
         if not target_hash:
             st.error("Please enter a target hash.")
             return
@@ -2033,7 +2058,7 @@ def tool_hashcat():
         time_taken = end_time - start_time
         
         if cracked_password:
-            st.success(f"🔓 **HASH CRACKED SUCCESSFULLY!**")
+            st.success(f"ðŸ”“ **HASH CRACKED SUCCESSFULLY!**")
             st.markdown(f"""
             <div class="stat-box" style="border: 2px solid #34d399; background: rgba(52,211,153,0.1);">
             <h3 style="color:#34d399; margin:0;">Plaintext Password: {cracked_password}</h3>
@@ -2044,20 +2069,20 @@ def tool_hashcat():
             log_action("Hash Cracked Successfully")
         else:
             progress_bar.progress(1.0)
-            st.error("❌ **Hash Not Found in Dictionary.**")
+            st.error("âŒ **Hash Not Found in Dictionary.**")
             st.write(f"The python engine mathematically hashed all {len(wordlist)} words in {time_taken:.4f} seconds, but your specific hash was not found.")
             st.write("In a real environment, you would use a larger dictionary (like the 14GB RockYou.txt) or launch a massive brute-force character attack utilizing GPU arrays.")
             log_tool_to_coc("Hashcat Password Cracker", f"Attempted to crack {hash_type} hash '{target_hash[:8]}...'. Hash not found in current dictionary.")
             log_action("Hash Cracking Failed")
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  WORKSPACE DASHBOARD (Case Management & Tools)
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 def render_tool_grid(key_suffix=""):
     st.markdown("---")
-    st.header("🛠️ Forensic Tool Integrations")
-    tool_cards = [("🖥️", "FTK Imager", "Disk imaging", "ftk"), ("🗂️", "Autopsy", "File system carving", "autopsy"), ("📷", "ExifTool", "Metadata extraction", "exiftool"), ("🛡️", "Defender", "Threat scanning", "defender"), ("📦", "Sandbox", "Malware detonation", "sandbox"), ("🌐", "VirusTotal", "Hash Reputation", "virustotal"), ("🧠", "Volatility 3", "Memory forensics", "volatility"), ("📱", "Cellebrite", "Mobile extraction", "cellebrite"), ("🦈", "Wireshark", "Network PCAP", "wireshark"), ("📊", "Web Log Analyzer", "SIEM / Log Forensics", "weblog"), ("🕵️", "Sleuth Kit", "Command Line FS", "sleuthkit"), ("🌍", "OSINT Tracker", "Live Geolocation", "osint"), ("🎭", "Steganography", "Hidden Pixel Forensics", "stego"), ("🔐", "Hashcat", "Offline Hash Cracking", "hashcat")]
+    st.header("ðŸ› ï¸ Forensic Tool Integrations")
+    tool_cards = [("ðŸ–¥ï¸", "FTK Imager", "Disk imaging", "ftk"), ("ðŸ—‚ï¸", "Autopsy", "File system carving", "autopsy"), ("ðŸ“·", "ExifTool", "Metadata extraction", "exiftool"), ("ðŸ›¡ï¸", "Defender", "Threat scanning", "defender"), ("ðŸ“¦", "Sandbox", "Malware detonation", "sandbox"), ("ðŸŒ", "VirusTotal", "Hash Reputation", "virustotal"), ("ðŸ§ ", "Volatility 3", "Memory forensics", "volatility"), ("ðŸ“±", "Cellebrite", "Mobile extraction", "cellebrite"), ("ðŸ¦ˆ", "Wireshark", "Network PCAP", "wireshark"), ("ðŸ“Š", "Web Log Analyzer", "SIEM / Log Forensics", "weblog"), ("ðŸ•µï¸", "Sleuth Kit", "Command Line FS", "sleuthkit"), ("ðŸŒ", "OSINT Tracker", "Live Geolocation", "osint"), ("ðŸŽ­", "Steganography", "Hidden Pixel Forensics", "stego"), ("ðŸ”", "Hashcat", "Offline Hash Cracking", "hashcat")]
     for i in range(0, len(tool_cards), 3):
         cols = st.columns(3)
         for j in range(3):
@@ -2066,14 +2091,15 @@ def render_tool_grid(key_suffix=""):
                 with cols[j]:
                     st.markdown(f"""<div class="tool-header" style="text-align:center;padding:24px 16px;margin-bottom:12px"><div style="font-size:2rem">{icon}</div><div class="tool-title" style="font-size:1.1rem;margin-top:8px">{title}</div><div class="tool-sub" style="margin-top:4px;font-size:0.8rem">{sub}</div></div>""", unsafe_allow_html=True)
                     if st.button(f"Open {title}", key=f"open_{key}_{key_suffix}", use_container_width=True):
+                        st.query_params["tool"] = key
                         st.session_state.active_tool = key; st.rerun()
 
 def workspace():
     if "active_case" not in st.session_state: st.session_state.active_case = None
 
     with st.sidebar:
-        expertise_display = f" | 🛡️ {st.session_state.get('expertise', 'Investigator')}"
-        st.header(f"👤 {st.session_state.get('full_name', st.session_state.user_id)}{expertise_display}")
+        expertise_display = f" | ðŸ›¡ï¸ {st.session_state.get('expertise', 'Investigator')}"
+        st.header(f"ðŸ‘¤ {st.session_state.get('full_name', st.session_state.user_id)}{expertise_display}")
         st.subheader(f"Role: {st.session_state.role.title()}")
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
         if st.button("Logout"):
@@ -2082,7 +2108,7 @@ def workspace():
             st.rerun()
             
         st.markdown("---")
-        st.markdown("**🤖 AI Security Monitor**")
+        st.markdown("**ðŸ¤– AI Security Monitor**")
         st.caption("Live behavioral analysis of active sessions.")
         log_container = st.container(height=400)
         with log_container:
@@ -2110,48 +2136,50 @@ def workspace():
 
     def get_tool_suggestions(category: str) -> str:
         s = {
-            "Financial Fraud & UPI Scams": "💡 **AI Investigation Plan:** Use **ExifTool** to extract metadata from forged receipts, and **Autopsy** to carve the disk for deleted financial records.",
-            "Identity Theft & Impersonation": "💡 **AI Investigation Plan:** Use **Cellebrite UFED** to extract mobile communication logs, and **Autopsy** to search for stolen identity documents on drives.",
-            "Malware, Ransomware & Hacking": "💡 **AI Investigation Plan:** Use **Secure Sandbox** to safely detonate suspicious files, **Volatility 3** for RAM analysis, and **VirusTotal API** to check IP/Hash reputation.",
-            "Cyberbullying & Harassment": "💡 **AI Investigation Plan:** Use **Cellebrite UFED** to extract social media chat history, and **ExifTool** to trace GPS locations from threatening images.",
-            "Phishing, Vishing & Smishing": "💡 **AI Investigation Plan:** Use **VirusTotal API** to analyze malicious URLs/IPs, and **Cellebrite UFED** to extract SMS logs.",
-            "Social Media Account Takeover": "💡 **AI Investigation Plan:** Use **VirusTotal API** to investigate login IPs, and **ExifTool** on provided screenshots.",
-            "Online Shopping & E-Commerce Scams": "💡 **AI Investigation Plan:** Use **ExifTool** to check metadata of fake invoices, and **VirusTotal API** to scan the fake shopping domain.",
-            "Extortion & Sextortion": "💡 **AI Investigation Plan:** Use **Cellebrite UFED** to extract WhatsApp/Telegram logs, and **ExifTool** to analyze blackmail media.",
-            "Cryptocurrency & Investment Scams": "💡 **AI Investigation Plan:** Use **Autopsy** to carve for crypto wallet files/seed phrases, and **Volatility 3** to check memory for clipboard stealers.",
-            "Corporate Data Breach": "💡 **AI Investigation Plan:** Start with **FTK Imager** for server imaging, then use **Volatility 3** and **Autopsy** for lateral movement analysis.",
-            "Child Exploitation / CSAM": "💡 **AI Investigation Plan:** Secure evidence using **FTK Imager**, then use **Autopsy** and **Cellebrite UFED** for extensive media carving.",
-            "Deepfakes & AI Misinformation": "💡 **AI Investigation Plan:** Use **ExifTool** to analyze media creation metadata, and **VirusTotal API** to trace the source domain.",
-            "Denial of Service (DDoS)": "💡 **AI Investigation Plan:** Use **VirusTotal API** to map botnet C2 IP addresses.",
-            "Other Cyber Crime": "💡 **AI Investigation Plan:** Start with **FTK Imager** to secure a forensic copy, then run **Microsoft Defender** for baseline threat scanning."
+            "Financial Fraud & UPI Scams": "ðŸ’¡ **AI Investigation Plan:** Use **ExifTool** to extract metadata from forged receipts, and **Autopsy** to carve the disk for deleted financial records.",
+            "Identity Theft & Impersonation": "ðŸ’¡ **AI Investigation Plan:** Use **Cellebrite UFED** to extract mobile communication logs, and **Autopsy** to search for stolen identity documents on drives.",
+            "Malware, Ransomware & Hacking": "ðŸ’¡ **AI Investigation Plan:** Use **Secure Sandbox** to safely detonate suspicious files, **Volatility 3** for RAM analysis, and **VirusTotal API** to check IP/Hash reputation.",
+            "Cyberbullying & Harassment": "ðŸ’¡ **AI Investigation Plan:** Use **Cellebrite UFED** to extract social media chat history, and **ExifTool** to trace GPS locations from threatening images.",
+            "Phishing, Vishing & Smishing": "ðŸ’¡ **AI Investigation Plan:** Use **VirusTotal API** to analyze malicious URLs/IPs, and **Cellebrite UFED** to extract SMS logs.",
+            "Social Media Account Takeover": "ðŸ’¡ **AI Investigation Plan:** Use **VirusTotal API** to investigate login IPs, and **ExifTool** on provided screenshots.",
+            "Online Shopping & E-Commerce Scams": "ðŸ’¡ **AI Investigation Plan:** Use **ExifTool** to check metadata of fake invoices, and **VirusTotal API** to scan the fake shopping domain.",
+            "Extortion & Sextortion": "ðŸ’¡ **AI Investigation Plan:** Use **Cellebrite UFED** to extract WhatsApp/Telegram logs, and **ExifTool** to analyze blackmail media.",
+            "Cryptocurrency & Investment Scams": "ðŸ’¡ **AI Investigation Plan:** Use **Autopsy** to carve for crypto wallet files/seed phrases, and **Volatility 3** to check memory for clipboard stealers.",
+            "Corporate Data Breach": "ðŸ’¡ **AI Investigation Plan:** Start with **FTK Imager** for server imaging, then use **Volatility 3** and **Autopsy** for lateral movement analysis.",
+            "Child Exploitation / CSAM": "ðŸ’¡ **AI Investigation Plan:** Secure evidence using **FTK Imager**, then use **Autopsy** and **Cellebrite UFED** for extensive media carving.",
+            "Deepfakes & AI Misinformation": "ðŸ’¡ **AI Investigation Plan:** Use **ExifTool** to analyze media creation metadata, and **VirusTotal API** to trace the source domain.",
+            "Denial of Service (DDoS)": "ðŸ’¡ **AI Investigation Plan:** Use **VirusTotal API** to map botnet C2 IP addresses.",
+            "Other Cyber Crime": "ðŸ’¡ **AI Investigation Plan:** Start with **FTK Imager** to secure a forensic copy, then run **Microsoft Defender** for baseline threat scanning."
         }
-        return s.get(category, "💡 **AI Investigation Plan:** Secure evidence using **FTK Imager** and begin standard forensic triage.")
+        return s.get(category, "ðŸ’¡ **AI Investigation Plan:** Secure evidence using **FTK Imager** and begin standard forensic triage.")
 
-    # ── CASE INVESTIGATION VIEW ──
+    # â”€â”€ CASE INVESTIGATION VIEW â”€â”€
     if st.session_state.active_case:
         cid = st.session_state.active_case
         c = all_complaints.get(cid)
         if not c:
             st.error("Case not found.")
+            if "case" in st.query_params: del st.query_params["case"]
             st.session_state.active_case = None; st.rerun()
             
         st.markdown('<div class="secondary-btn" style="width: 200px;">', unsafe_allow_html=True)
-        if st.button("← Back to Dashboard", key="back_to_dash"):
+        if st.button("â† Back to Dashboard", key="back_to_dash"):
+            if "case" in st.query_params: del st.query_params["case"]
             st.session_state.active_case = None; st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
         
-        st.markdown(f"<h2 style='color:#38bdf8; margin-top:20px;'>📁 Active Investigation: {cid}</h2>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='color:#38bdf8; margin-top:20px;'>ðŸ“ Active Investigation: {cid}</h2>", unsafe_allow_html=True)
         st.markdown(f"**Category:** {c['category']} &nbsp;|&nbsp; **Reported On:** {c['timestamp']}")
         st.markdown(f"**Current Status:** `{c.get('status', 'Assigned')}`")
         
         if c.get("status") == "Unassigned" and st.session_state.role == "admin":
-            st.warning("⚠️ **This case is unassigned.** Review the evidence below and assign it to an investigator.")
+            st.warning("âš ï¸ **This case is unassigned.** Review the evidence below and assign it to an investigator.")
             col1, col2, col3 = st.columns([2, 2, 1])
             with col1:
                 assigned_to = st.selectbox(
                     "Assign to Investigator", 
                     ["(Select Investigator)"] + investigators, 
-                    format_func=lambda x: f"{x} — {users[x].get('expertise', 'General')}" if x != "(Select Investigator)" else x,
+                    format_func=lambda x: f"{x} â€” {users[x].get('expertise', 'General')}" if x != "(Select Investigator)" else x,
                     key=f"sel_{cid}"
                 )
             with col2: ev_location = st.text_input("Evidence Location", "Secure Cloud Enclave", key=f"loc_{cid}")
@@ -2171,10 +2199,12 @@ def workspace():
                         save_complaint(cid, c)
                         log_action(f"Handed over {cid} evidence to {assigned_to} at {ev_location}")
                         st.success(f"Case securely handed over to {assigned_to}!")
-                        time.sleep(1); st.session_state.active_case = None; st.rerun()
+                        time.sleep(1)
+                        if "case" in st.query_params: del st.query_params["case"]
+                        st.session_state.active_case = None; st.rerun()
                     else: st.error("Please select an investigator first.")
         elif c.get("status") == "Completed":
-            st.success("✅ **CASE CLOSED**")
+            st.success("âœ… **CASE CLOSED**")
             if c.get("final_report"):
                 st.markdown(f"**Investigator's Final Findings:**\n> {c['final_report']}")
                 
@@ -2205,21 +2235,21 @@ def workspace():
                 
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.download_button(
-                    label="📄 Export Official Case Report (.txt)",
+                    label="ðŸ“„ Export Official Case Report (.txt)",
                     data=report_content,
                     file_name=f"Case_Report_{cid}.txt",
                     mime="text/plain",
                     type="primary"
                 )
         else:
-            with st.expander("✍️ Add Investigation Note to Chain of Custody"):
+            with st.expander("âœï¸ Add Investigation Note to Chain of Custody"):
                 new_note = st.text_input("Enter your observation, action taken, or intermediate findings...", key=f"note_{cid}")
                 if st.button("Log Note to CoC"):
                     if new_note.strip():
                         if "chain_of_custody" not in c: c["chain_of_custody"] = []
                         c["chain_of_custody"].append({
                             "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "action": f"📝 Investigator Note: {new_note}",
+                            "action": f"ðŸ“ Investigator Note: {new_note}",
                             "actor": f"Investigator ({st.session_state.user_id})",
                             "location": "Active Investigation File"
                         })
@@ -2228,11 +2258,11 @@ def workspace():
                         time.sleep(1); st.rerun()
                     else: st.error("Please enter a note to log.")
                     
-            with st.expander("📝 Submit Final Investigation Report & Close Case"):
+            with st.expander("ðŸ“ Submit Final Investigation Report & Close Case"):
                 final_findings = st.text_area("Forensic Findings & Conclusion", placeholder="Detail the results of your investigation, IOCs found, and final resolution...")
                 if st.button("Submit Report & Close Case", type="primary"):
                     if not final_findings.strip():
-                        st.error("⚠️ You must provide forensic findings to close the case.")
+                        st.error("âš ï¸ You must provide forensic findings to close the case.")
                     else:
                         c["status"] = "Completed"
                         c["final_report"] = final_findings
@@ -2245,7 +2275,7 @@ def workspace():
                         })
                         save_complaint(cid, c)
                         log_action(f"Closed Case {cid} and filed report.")
-                        st.success("✅ Case officially closed!")
+                        st.success("âœ… Case officially closed!")
                         time.sleep(1.5); st.rerun()
                 
         st.info(get_tool_suggestions(c['category']))
@@ -2254,19 +2284,19 @@ def workspace():
         
         col1, col2 = st.columns([1, 1.2])
         with col1:
-            st.markdown("""<div class="case-card"><h4 style="margin-top:0; color:#e0e6f0;">📝 Complainer Details</h4>""", unsafe_allow_html=True)
+            st.markdown("""<div class="case-card"><h4 style="margin-top:0; color:#e0e6f0;">ðŸ“ Complainer Details</h4>""", unsafe_allow_html=True)
             st.markdown(f"**Victim Name:** {c['victim_name']}")
             st.markdown(f"**Contact Number:** {c['victim_phone']}</div>", unsafe_allow_html=True)
             
-            st.markdown("""<div class="case-card"><h4 style="margin-top:0; color:#e0e6f0;">📄 Incident Description</h4>""", unsafe_allow_html=True)
+            st.markdown("""<div class="case-card"><h4 style="margin-top:0; color:#e0e6f0;">ðŸ“„ Incident Description</h4>""", unsafe_allow_html=True)
             st.markdown(f"<p style='color:#7ec8e3; line-height: 1.6;'>{c['description']}</p></div>", unsafe_allow_html=True)
             
         with col2:
-            st.markdown("""<div class="case-card"><h4 style="margin-top:0; color:#38bdf8;">🔍 Evidence Details</h4>""", unsafe_allow_html=True)
+            st.markdown("""<div class="case-card"><h4 style="margin-top:0; color:#38bdf8;">ðŸ” Evidence Details</h4>""", unsafe_allow_html=True)
             
             ev_file = c.get("evidence_file", "")
             if ev_file and ev_file.startswith("[PHYSICAL DEVICE]"):
-                st.info(f"📦 **Physical Evidence:** {ev_file.replace('[PHYSICAL DEVICE] ', '')}")
+                st.info(f"ðŸ“¦ **Physical Evidence:** {ev_file.replace('[PHYSICAL DEVICE] ', '')}")
                 st.caption("This is a physical device. Please refer to the Chain of Custody log below for its current physical location in the precinct or forensic lab.")
             elif c.get("evidence_path") and os.path.exists(c["evidence_path"]):
                 file_ext = os.path.splitext(c["evidence_path"])[1].lower()
@@ -2290,7 +2320,7 @@ def workspace():
                     log_action(f"Downloaded Evidence for {cid}")
                 
                 st.download_button(
-                    label=f"⬇️ Download Evidence File ({c['evidence_file']})",
+                    label=f"â¬‡ï¸ Download Evidence File ({c['evidence_file']})",
                     data=file_bytes,
                     file_name=c['evidence_file'],
                     mime="application/octet-stream",
@@ -2298,10 +2328,10 @@ def workspace():
                     on_click=log_download
                 )
             else:
-                st.warning("⚠️ No evidence file was attached to this complaint.")
+                st.warning("âš ï¸ No evidence file was attached to this complaint.")
             
             st.markdown("<hr style='border-color:#2d4060;'>", unsafe_allow_html=True)
-            st.markdown("<h5 style='color:#e0e6f0;'>🔗 Chain of Custody Log</h5>", unsafe_allow_html=True)
+            st.markdown("<h5 style='color:#e0e6f0;'>ðŸ”— Chain of Custody Log</h5>", unsafe_allow_html=True)
             if "chain_of_custody" in c and c["chain_of_custody"]:
                 for log in c["chain_of_custody"]:
                     st.markdown(f"<div style='font-size:0.85em; margin-bottom:5px; padding:8px; background:#0d1a26; border-left:3px solid #7ec8e3;'><b>{log['timestamp']}</b><br/><b>Action:</b> {log['action']}<br/><b>By:</b> {log['actor']}<br/><b>Location:</b> {log['location']}</div>", unsafe_allow_html=True)
@@ -2309,9 +2339,9 @@ def workspace():
                 st.info("No Chain of Custody records available.")
             
             st.markdown("</div>", unsafe_allow_html=True)
-        # ── PERMANENT EVIDENCE VAULT ──
+        # â”€â”€ PERMANENT EVIDENCE VAULT â”€â”€
         st.markdown("---")
-        with st.expander("🗄️ Permanent Evidence Vault", expanded=True):
+        with st.expander("ðŸ—„ï¸ Permanent Evidence Vault", expanded=True):
             st.write("Securely upload and store suspect files, logs, and disk images permanently attached to this case.")
             
             case_evidence_dir = os.path.join(EVIDENCE_VAULT_DIR, cid)
@@ -2319,9 +2349,9 @@ def workspace():
             
             col_vault_1, col_vault_2 = st.columns([1, 1])
             with col_vault_1:
-                st.markdown("#### 📤 Upload New Evidence")
+                st.markdown("#### ðŸ“¤ Upload New Evidence")
                 new_evidence = st.file_uploader("Upload Case Files", accept_multiple_files=True, key=f"vault_upload_{cid}")
-                if new_evidence and st.button("💾 Secure Evidence to Vault", type="primary"):
+                if new_evidence and st.button("ðŸ’¾ Secure Evidence to Vault", type="primary"):
                     for ev_file in new_evidence:
                         file_path = os.path.join(case_evidence_dir, ev_file.name)
                         with open(file_path, "wb") as f:
@@ -2340,14 +2370,14 @@ def workspace():
                     st.rerun()
                     
             with col_vault_2:
-                st.markdown("#### 📥 Attached Case Files")
+                st.markdown("#### ðŸ“¥ Attached Case Files")
                 existing_files = os.listdir(case_evidence_dir)
                 if existing_files:
                     for f_name in existing_files:
                         file_path = os.path.join(case_evidence_dir, f_name)
                         with open(file_path, "rb") as f_read:
                             st.download_button(
-                                label=f"📄 {f_name}",
+                                label=f"ðŸ“„ {f_name}",
                                 data=f_read,
                                 file_name=f_name,
                                 key=f"dl_vault_{cid}_{f_name}",
@@ -2359,17 +2389,17 @@ def workspace():
         render_tool_grid("case")
         return
 
-    st.title("🔍 Secure Investigator Workspace")
+    st.title("ðŸ” Secure Investigator Workspace")
     st.markdown("---")
 
     if st.session_state.role == "admin":
-        st.header("🚨 Admin Action Required: Unassigned Complaints")
+        st.header("ðŸš¨ Admin Action Required: Unassigned Complaints")
         unassigned = {cid: c for cid, c in all_complaints.items() if c.get("status") == "Unassigned"}
         if not unassigned: st.success("No new public complaints pending assignment.")
         else:
             for cid, c in unassigned.items():
-                st.markdown(f"""<div class="case-card"><h3 style="color:#f87171;margin-top:0">{cid} — {c['category']}</h3><p><b>Victim:</b> {c['victim_name']} | <b>Contact:</b> {c['victim_phone']} | <b>Date:</b> {c['timestamp']}</p><p><b>Description:</b> {c['description']}</p></div>""", unsafe_allow_html=True)
-                if st.button(f"🔍 Open Case for Review", key=f"open_admin_{cid}", type="primary"):
+                st.markdown(f"""<div class="case-card"><h3 style="color:#f87171;margin-top:0">{cid} â€” {c['category']}</h3><p><b>Victim:</b> {c['victim_name']} | <b>Contact:</b> {c['victim_phone']} | <b>Date:</b> {c['timestamp']}</p><p><b>Description:</b> {c['description']}</p></div>""", unsafe_allow_html=True)
+                if st.button(f"ðŸ” Open Case for Review", key=f"open_admin_{cid}", type="primary"):
                     if "chain_of_custody" not in c: c["chain_of_custody"] = [{"timestamp": c['timestamp'], "action": "Evidence Initially Submitted", "actor": c['victim_name'], "location": "Public Intake Portal"}]
                     c["chain_of_custody"].append({
                         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -2378,12 +2408,13 @@ def workspace():
                         "location": "Admin Dashboard"
                     })
                     save_complaint(cid, c)
+                    st.query_params["case"] = cid
                     st.session_state.active_case = cid
                     log_action(f"Admin Opened Unassigned Case: {cid}")
                     st.rerun()
         st.markdown("---")
         
-        st.header("👥 Investigator Workloads")
+        st.header("ðŸ‘¥ Investigator Workloads")
         for inv_uid in investigators:
             inv_name = users[inv_uid].get("full_name", inv_uid)
             inv_exp  = users[inv_uid].get("expertise", "General")
@@ -2392,29 +2423,29 @@ def workspace():
             pending_cases = {cid: c for cid, c in inv_cases.items() if c.get("status", "Assigned") != "Completed"}
             completed_cases = {cid: c for cid, c in inv_cases.items() if c.get("status", "") == "Completed"}
             
-            with st.expander(f"🕵️ {inv_name} ({inv_uid}) — 🛡️ {inv_exp} | {len(pending_cases)} Pending | {len(completed_cases)} Completed"):
+            with st.expander(f"ðŸ•µï¸ {inv_name} ({inv_uid}) â€” ðŸ›¡ï¸ {inv_exp} | {len(pending_cases)} Pending | {len(completed_cases)} Completed"):
                 if pending_cases:
                     st.markdown("**Pending / Assigned Cases:**")
                     for cid, c in pending_cases.items():
-                        st.markdown(f"- **{cid}** ({c['category']}) — Victim: {c['victim_name']} — *{c['timestamp']}*")
+                        st.markdown(f"- **{cid}** ({c['category']}) â€” Victim: {c['victim_name']} â€” *{c['timestamp']}*")
                 else:
                     st.markdown("*No pending cases.*")
                     
                 if completed_cases:
                     st.markdown("**Completed Cases:**")
                     for cid, c in completed_cases.items():
-                        st.markdown(f"✅ **{cid}** ({c['category']}) — Victim: {c['victim_name']}")
+                        st.markdown(f"âœ… **{cid}** ({c['category']}) â€” Victim: {c['victim_name']}")
                         if c.get("final_report"):
                             st.markdown(f"<div style='margin-left: 20px; font-size: 0.9em; padding: 5px; border-left: 2px solid #38bdf8; color: #7ec8e3;'><b>Final Report:</b> {c['final_report']}</div>", unsafe_allow_html=True)
                         
         st.markdown("---")
     else:
-        st.header("📂 My Active Case Files")
+        st.header("ðŸ“‚ My Active Case Files")
         my_cases = {cid: c for cid, c in all_complaints.items() if c.get("assigned_to") == st.session_state.user_id and c.get("status") != "Completed"}
         if not my_cases: st.info("You have no assigned cases right now. Relax!")
         else:
             for cid, c in my_cases.items():
-                with st.expander(f"📁 {cid}: {c['category']} (Victim: {c['victim_name']})"):
+                with st.expander(f"ðŸ“ {cid}: {c['category']} (Victim: {c['victim_name']})"):
                     st.markdown(f"**Contact:** {c['victim_phone']}  |  **Reported On:** {c['timestamp']}\n**Description:**\n> {c['description']}")
                     has_evidence = bool(c.get('evidence_file'))
                     st.markdown(f"**Attached Evidence:** `{c['evidence_file'] if has_evidence else 'None'}`")
@@ -2429,15 +2460,16 @@ def workspace():
                             "location": "Secure Investigator Enclave"
                         })
                         save_complaint(cid, c)
+                        st.query_params["case"] = cid
                         st.session_state.active_case = cid
                         st.rerun()
         st.markdown("---")
 
     render_tool_grid("dash")
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  ENTRY POINT
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 def main():
     if st.session_state.get("logged_in"): workspace(); return
     
@@ -2450,7 +2482,7 @@ def main():
     max_height_rule = "100vh" if current_page == "login" else "none"
     padding_top = "2vh" if current_page == "login" else "5vh"
     
-    # ── DYNAMIC SCROLLING (AUTH PAGES) ──
+    # â”€â”€ DYNAMIC SCROLLING (AUTH PAGES) â”€â”€
     st.markdown(f"""
     <style>
     
@@ -2473,3 +2505,11 @@ def main():
     else: login_page()
 
 if __name__ == "__main__": main()
+
+
+
+
+
+
+
+

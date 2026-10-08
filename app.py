@@ -2474,7 +2474,6 @@ def workspace():
                         st.rerun()
         st.markdown("---")
 
-    render_tool_grid("dash")
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  ENTRY POINT

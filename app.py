@@ -349,8 +349,17 @@ def register_page(first_time: bool = False):
         user_id   = st.text_input("uid_reg", placeholder="User ID  (e.g. inv3 or admin2)", label_visibility="collapsed")
         email     = st.text_input("email_reg", placeholder="Email Address", label_visibility="collapsed")
         mobile    = st.text_input("mobile_reg", placeholder="Mobile Number (e.g. +1 555-0100)", label_visibility="collapsed")
-        role      = st.selectbox("role_sel", ["investigator", "admin"], label_visibility="collapsed")
-        expertise = st.selectbox("expertise_sel", ["Digital Forensics", "Malware Analysis", "Incident Response", "Network Security", "Cloud Security", "Mobile Forensics"], label_visibility="collapsed")
+        role      = st.selectbox("role_sel", ["investigator", "admin", "analyst", "responder", "auditor", "viewer"], label_visibility="collapsed")
+        expertise = st.selectbox("expertise_sel", [
+            "Digital Forensics", "Malware Analysis", "Incident Response", "Network Security",
+            "Cloud Security", "Mobile Forensics", "Penetration Testing / Ethical Hacking",
+            "Vulnerability Management", "Security Architecture", "Cryptography",
+            "Threat Intelligence", "Identity & Access Management (IAM)",
+            "Governance, Risk, and Compliance (GRC)", "Application Security (AppSec)",
+            "IoT Security", "ICS / SCADA Security", "SOC Analysis",
+            "Red Teaming", "Blue Teaming", "Purple Teaming",
+            "Social Engineering / Human Risk", "Data Privacy & Protection"
+        ], label_visibility="collapsed")
         password  = st.text_input("pwd_reg",  placeholder="Password  (min. 8 characters)", type="password", label_visibility="collapsed")
         confirm   = st.text_input("cpwd_reg", placeholder="Confirm Password",               type="password", label_visibility="collapsed")
         st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
@@ -2154,7 +2163,7 @@ def workspace():
         return
 
     users, all_complaints = load_users(), load_complaints()
-    investigators = [uid for uid, u in users.items() if u.get("role") == "investigator"]
+    investigators = [uid for uid, u in users.items() if u.get("role") not in ["admin", "viewer"]]
 
     def get_tool_suggestions(category: str) -> str:
         s = {

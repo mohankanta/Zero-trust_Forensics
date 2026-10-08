@@ -94,6 +94,14 @@ if FIREBASE_INSTALLED:
 # ── Global CSS ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
+/* Hide Streamlit Branding */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+[data-testid="stDecoration"] {display: none;}
+[class^="viewerBadge"] {display: none !important;}
+.viewerBadge_container__1QSob {display: none !important;}
+
 html, body { background-color: #131f2e !important; color: #e0e6f0 !important; }
 [data-testid="stApp"] {
         background-size: cover !important;

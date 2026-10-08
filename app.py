@@ -2530,9 +2530,9 @@ def workspace():
                     
                 icon = "➖" if st.session_state[state_key] else "➕"
                 
-                col_btn, col_info = st.columns([1, 4])
+                col_btn, col_info = st.columns([0.3, 4.7])
                 with col_btn:
-                    if st.button(f"{icon} Expand", key=f"btn_{inv_uid}"):
+                    if st.button(f"{icon}", key=f"btn_{inv_uid}"):
                         st.session_state[state_key] = not st.session_state[state_key]
                         st.rerun()
                 with col_info:

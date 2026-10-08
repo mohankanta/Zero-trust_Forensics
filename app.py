@@ -249,76 +249,79 @@ def log_tool_to_coc(tool_name: str, findings: str):
 #  PUBLIC COMPLAINT PAGE
 # ══════════════════════════════════════════════════════════════════════════════
 def public_complaint_page():
-    _, col, _ = st.columns([1, 1.7, 1])
+    _, col, _ = st.columns([1, 2, 1])
     with col:
-        st.markdown("""<div class="auth-card" style="max-width:700px">
+        st.markdown("""<div class="auth-card" style="max-width:850px">
             <div class="card-icon">🚨</div><div class="card-title">File an Official Complaint</div>
             <div class="card-sub">Secure Public Reporting Portal</div></div>""", unsafe_allow_html=True)
-        st.markdown("<div style='height:15px'></div><h4 style='color:#38bdf8'>Victim Information</h4>", unsafe_allow_html=True)
-        name = st.text_input("c_name", placeholder="Full Name", label_visibility="collapsed")
-        phone = st.text_input("c_phone", placeholder="Mobile Number", label_visibility="collapsed")
-        st.markdown("<p style='margin-bottom:0px; font-weight:bold;'>Complaint Category</p>", unsafe_allow_html=True)
-        category = st.selectbox(
-            "c_cat", 
-            [
-                "Financial Fraud & UPI Scams", 
-                "Identity Theft & Impersonation", 
-                "Malware, Ransomware & Hacking", 
-                "Cyberbullying & Harassment", 
-                "Phishing, Vishing & Smishing",
-                "Social Media Account Takeover",
-                "Online Shopping & E-Commerce Scams",
-                "Extortion & Sextortion",
-                "Cryptocurrency & Investment Scams",
-                "Corporate Data Breach",
-                "Child Exploitation / CSAM",
-                "Deepfakes & AI Misinformation",
-                "Denial of Service (DDoS)",
-                "Other Cyber Crime"
-            ], 
-            label_visibility="collapsed"
-        )
-        desc = st.text_area("c_desc", placeholder="Describe the incident in detail...", height=150, label_visibility="collapsed")
-        st.markdown("<div style='height:10px'></div><h4 style='color:#38bdf8'>Evidence Submission</h4>", unsafe_allow_html=True)
-        evidence_type = st.radio("Evidence Type", ["Digital File Upload (Screenshots, PDFs)", "Physical Device Handover (Hard Drive, Mobile Phone, etc.)"], horizontal=True)
         
+        st.markdown("<div style='height:15px'></div><h4 style='color:#38bdf8'>1. Victim Information</h4>", unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1: name = st.text_input("Full Name", placeholder="e.g., John Doe")
+        with c2: phone = st.text_input("Contact Number", placeholder="e.g., +1 555-0199")
+            
+        st.markdown("<div style='height:10px'></div><h4 style='color:#38bdf8'>2. Incident Timeline</h4>", unsafe_allow_html=True)
+        c3, c4 = st.columns(2)
+        with c3: incident_date = st.date_input("Date of Incident")
+        with c4: incident_time = st.time_input("Time of Incident")
+        ongoing = st.radio("Is the attack still ongoing?", ["No, it has stopped", "Yes, it is currently happening"], horizontal=True)
+        
+        st.markdown("<div style='height:10px'></div><h4 style='color:#38bdf8'>3. Affected Assets & Threat Intel</h4>", unsafe_allow_html=True)
+        category = st.selectbox("Complaint Category", ["Financial Fraud & UPI Scams", "Identity Theft & Impersonation", "Malware, Ransomware & Hacking", "Cyberbullying & Harassment", "Phishing, Vishing & Smishing", "Social Media Account Takeover", "Online Shopping & E-Commerce Scams", "Extortion & Sextortion", "Cryptocurrency & Investment Scams", "Corporate Data Breach", "Child Exploitation / CSAM", "Deepfakes & AI Misinformation", "Denial of Service (DDoS)", "Other Cyber Crime"])
+        c5, c6 = st.columns(2)
+        with c5:
+            compromised_asset = st.selectbox("Primary Asset Compromised", ["Website / Web App", "Email Account", "Bank Account", "Social Media", "Physical Device (Laptop/Phone)", "Corporate Server", "Other"])
+            financial_loss = st.text_input("Estimated Financial Loss (if any)", placeholder="e.g., $5,000")
+        with c6:
+            asset_details = st.text_input("Asset Details", placeholder="e.g., IP Address, URL, or Account Name")
+            attacker_info = st.text_input("Suspect Info (if known)", placeholder="e.g., Attacker Email, Crypto Wallet, Phone")
+
+        st.markdown("<div style='height:10px'></div><h4 style='color:#38bdf8'>4. Description & Evidence</h4>", unsafe_allow_html=True)
+        desc = st.text_area("Detailed Description of the Incident", placeholder="Describe exactly what happened...", height=150)
+        
+        evidence_type = st.radio("Evidence Type", ["Digital File Upload (Screenshots, PDFs)", "Physical Device Handover (Hard Drive, Mobile Phone, etc.)"], horizontal=True)
         uploaded_file = None
         phys_device_desc = ""
-        
         if "Digital File" in evidence_type:
-            st.caption("Upload screenshots, bank statements, or suspicious files (PDF, JPG, PNG).")
-            uploaded_file = st.file_uploader("Upload Evidence", label_visibility="collapsed")
+            uploaded_file = st.file_uploader("Upload Evidence (Screenshots, Logs)", label_visibility="collapsed")
         else:
-            st.info("⚠️ **Physical Handover Required:** Please describe the device below. You must physically drop this device off at the Cyber Crime Station after submitting.")
-            phys_device_desc = st.text_input("Device Description", placeholder="e.g., iPhone 14 Pro (Black), Seagate 1TB External Hard Drive")
+            st.info("⚠️ **Physical Handover Required:** Please describe the device below.")
+            phys_device_desc = st.text_input("Device Description", placeholder="e.g., iPhone 14 Pro (Black)")
+            
+        st.markdown("<div style='height:10px'></div><h4 style='color:#38bdf8'>5. Legal Consent</h4>", unsafe_allow_html=True)
+        consent = st.checkbox("I authorize the Zero Trust investigation team to legally analyze my digital evidence, logs, and provided information.")
             
         st.markdown("<div style='height:15px'></div>", unsafe_allow_html=True)
         submit_btn = st.button("SUBMIT COMPLAINT", key="submit_complaint", use_container_width=True)
         st.markdown('<div class="secondary-btn">', unsafe_allow_html=True)
-        if st.button("← Cancel & Return to Login", key="cancel_complaint", use_container_width=True):
+        if st.button("⬅️ Cancel & Return to Login", key="cancel_complaint", use_container_width=True):
             st.session_state.page = "login"; st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
-
+        
         if submit_btn:
             if not name.strip() or not phone.strip() or not desc.strip():
-                st.error("⚠️ Please fill out your Name, Mobile Number, and Incident Description.")
+                st.error("🚫 Please fill out your Name, Mobile Number, and Incident Description.")
+            elif not consent:
+                st.error("🚫 You must agree to the Legal Consent to submit a complaint.")
             elif "Physical" in evidence_type and not phys_device_desc.strip():
-                st.error("⚠️ Please describe the physical device you intend to hand over.")
+                st.error("🚫 Please describe the physical device you intend to hand over.")
             else:
-                case_id = f"CASE-{random.randint(1000, 9999)}"
+                case_id = f"CASE-{__import__('random').randint(1000, 9999)}"
                 file_path = file_name = None
                 
                 if "Digital File" in evidence_type and uploaded_file:
                     file_name = uploaded_file.name
-                    unique_name = f"{case_id}_{uuid.uuid4().hex[:8]}_{file_name}"
+                    unique_name = f"{case_id}_{__import__('uuid').uuid4().hex[:8]}_{file_name}"
                     file_path = os.path.join(UPLOADS_DIR, unique_name)
                     with open(file_path, "wb") as f: f.write(uploaded_file.getbuffer())
                 elif "Physical Device" in evidence_type:
                     file_name = f"[PHYSICAL DEVICE] {phys_device_desc}"
-                    file_path = None
                 
                 complaint_data = {
                     "case_id": case_id, "victim_name": name, "victim_phone": phone, "category": category,
+                    "incident_date": str(incident_date), "incident_time": str(incident_time), "ongoing": ongoing,
+                    "compromised_asset": compromised_asset, "asset_details": asset_details, "financial_loss": financial_loss,
+                    "attacker_info": attacker_info,
                     "description": desc, "evidence_file": file_name, "evidence_path": file_path,
                     "status": "Unassigned", "assigned_to": None, "timestamp": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
                 }
@@ -329,10 +332,8 @@ def public_complaint_page():
                     complaint_data["chain_of_custody"] = [{"timestamp": complaint_data['timestamp'], "action": "Digital Evidence Uploaded", "actor": name, "location": "Public Intake Portal"}]
                 
                 save_complaint(case_id, complaint_data)
-                log_action(f"New Complaint Filed: {case_id}")
-                st.success(f"✅ Complaint Submitted Successfully! Your tracking ID is **{case_id}**.")
-                st.info("Our investigators have been notified and will review your evidence securely.")
-                time.sleep(4); st.session_state.page = "login"; st.rerun()
+                st.success(f"✅ Official Complaint Registered. Your Reference ID is **{case_id}**.")
+                time.sleep(2); st.session_state.page = "login"; st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  REGISTER & LOGIN PAGES (Centered Interface)
@@ -2466,7 +2467,13 @@ def workspace():
         if not unassigned: st.success("No new public complaints pending assignment.")
         else:
             for cid, c in unassigned.items():
-                st.markdown(f"""<div class="case-card"><h3 style="color:#f87171;margin-top:0">{cid} — {c['category']}</h3><p><b>Victim:</b> {c['victim_name']} | <b>Contact:</b> {c['victim_phone']} | <b>Date:</b> {c['timestamp']}</p><p><b>Description:</b> {c['description']}</p></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="case-card">
+                    <h3 style="color:#f87171;margin-top:0">{cid} — {c.get('category', 'N/A')}</h3>
+                    <p><b>Victim:</b> {c.get('victim_name', 'N/A')} | <b>Contact:</b> {c.get('victim_phone', 'N/A')} | <b>Reported:</b> {c.get('timestamp', 'N/A')}</p>
+                    <p><b>Incident Time:</b> {c.get('incident_date', 'N/A')} {c.get('incident_time', 'N/A')} | <b>Ongoing:</b> {c.get('ongoing', 'N/A')}</p>
+                    <p><b>Asset:</b> {c.get('compromised_asset', 'N/A')} ({c.get('asset_details', 'N/A')}) | <b>Suspect Intel:</b> {c.get('attacker_info', 'None')}</p>
+                    <p><b>Description:</b> {c.get('description', 'N/A')}</p>
+                </div>""", unsafe_allow_html=True)
                 if st.button(f"🔍 Open Case for Review", key=f"open_admin_{cid}", type="primary"):
                     if "chain_of_custody" not in c: c["chain_of_custody"] = [{"timestamp": c['timestamp'], "action": "Evidence Initially Submitted", "actor": c['victim_name'], "location": "Public Intake Portal"}]
                     c["chain_of_custody"].append({
@@ -2514,7 +2521,11 @@ def workspace():
         else:
             for cid, c in my_cases.items():
                 with st.expander(f"📁 {cid}: {c['category']} (Victim: {c['victim_name']})"):
-                    st.markdown(f"**Contact:** {c['victim_phone']}  |  **Reported On:** {c['timestamp']}\n**Description:**\n> {c['description']}")
+                    st.markdown(f"**Contact:** {c.get('victim_phone', 'N/A')}  |  **Reported On:** {c.get('timestamp', 'N/A')}")
+                    st.markdown(f"**Incident Time:** {c.get('incident_date', 'N/A')} {c.get('incident_time', 'N/A')} | **Ongoing:** {c.get('ongoing', 'N/A')}")
+                    st.markdown(f"**Asset:** {c.get('compromised_asset', 'N/A')} ({c.get('asset_details', 'N/A')})")
+                    st.markdown(f"**Suspect Intel:** {c.get('attacker_info', 'None provided')} | **Loss:** {c.get('financial_loss', 'None')}")
+                    st.markdown(f"**Description:**\n> {c.get('description', 'N/A')}")
                     has_evidence = bool(c.get('evidence_file'))
                     st.markdown(f"**Attached Evidence:** `{c['evidence_file'] if has_evidence else 'None'}`")
                     st.markdown(f"<div style='margin-top: 8px; margin-bottom: 12px; font-size: 0.9em; color: #7ec8e3;'>{get_tool_suggestions(c['category'])}</div>", unsafe_allow_html=True)

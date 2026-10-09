@@ -57,6 +57,45 @@ UPLOADS_DIR        = os.path.join(BASE_DIR, "uploads")
 EVIDENCE_VAULT_DIR = os.path.join(BASE_DIR, "evidence_vault")
 SESSIONS_FILE   = os.path.join(BASE_DIR, "sessions.json")
 GLOBAL_AUDIT_FILE = os.path.join(BASE_DIR, "global_audit.json")
+SOC_REPORT_DIR = os.path.join(BASE_DIR, "soc_report")
+os.makedirs(SOC_REPORT_DIR, exist_ok=True)
+
+import threading
+import time
+import pandas as pd
+
+@st.cache_resource
+def start_daily_soc_report_scheduler():
+    def worker():
+        last_run_file = os.path.join(SOC_REPORT_DIR, ".last_run")
+        while True:
+            time.sleep(30)
+            now = datetime.datetime.now(IST)
+            if now.hour == 23 and now.minute >= 58:  # Trigger at 23:58-23:59
+                today_str = now.strftime("%Y-%m-%d")
+                
+                last_run = ""
+                if os.path.exists(last_run_file):
+                    with open(last_run_file, "r") as f: last_run = f.read().strip()
+                
+                if last_run != today_str:
+                    try:
+                        if os.path.exists(GLOBAL_AUDIT_FILE):
+                            import json
+                            with open(GLOBAL_AUDIT_FILE, "r") as f: data = json.load(f)
+                            df = pd.DataFrame(data)
+                            report_path = os.path.join(SOC_REPORT_DIR, f"soc_report_{today_str}.csv")
+                            df.to_csv(report_path, index=False)
+                            
+                            with open(last_run_file, "w") as f: f.write(today_str)
+                    except Exception:
+                        pass
+    t = threading.Thread(target=worker, daemon=True)
+    t.start()
+    return t
+
+start_daily_soc_report_scheduler()
+
 
 # --- Sync URL State for Browser Back/Refresh ---
 if "session" in st.query_params:
@@ -2515,6 +2554,29 @@ def workspace():
                 # Style the dataframe for dark mode
                 st.dataframe(df_audit.sort_values("timestamp", ascending=False), use_container_width=True, hide_index=True, height=250)
             
+        st.markdown("---")
+
+        st.markdown("---")
+
+        st.header("📂 Daily SOC Reports")
+        report_files = sorted([f for f in os.listdir(SOC_REPORT_DIR) if f.startswith("soc_report_")], reverse=True)
+        if not report_files:
+            st.info("No daily reports have been generated yet (first report will automatically save tonight at 23:59).")
+            # Developer manual trigger for testing if needed
+            if st.button("Generate Today's Report Now (Dev Override)"):
+                today_str = datetime.datetime.now(IST).strftime("%Y-%m-%d")
+                import pandas as pd, json
+                if os.path.exists(GLOBAL_AUDIT_FILE):
+                    with open(GLOBAL_AUDIT_FILE, "r") as f: data = json.load(f)
+                    df = pd.DataFrame(data)
+                    df.to_csv(os.path.join(SOC_REPORT_DIR, f"soc_report_{today_str}.csv"), index=False)
+                    st.rerun()
+        else:
+            for rf in report_files:
+                rf_path = os.path.join(SOC_REPORT_DIR, rf)
+                with open(rf_path, "rb") as f:
+                    st.download_button(label=f"⬇️ Download {rf}", data=f, file_name=rf, mime="text/csv", key=f"dl_{rf}")
+
         st.markdown("---")
 
         st.header("🚨 Admin Action Required: Unassigned Complaints")

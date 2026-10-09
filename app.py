@@ -1549,6 +1549,7 @@ def tool_exiftool():
     <p><b>Generated:</b> {datetime.datetime.now(IST).strftime('%Y-%m-%d %H:%M:%S')}<br>
     <b>Investigator:</b> {st.session_state.get('full_name', 'Unknown')}<br>
     <b>File Analyzed:</b> {uploaded_file.name}<br>
+    <b>Image Profile:</b> {img_format} | {img_dims} | {img_mode} | {file_size_kb:.1f} KB<br>
     <b>Total Tags Found:</b> {len(tags)}</p>
 """
                 if gps_lat and gps_lon and gps_lat_ref and gps_lon_ref:

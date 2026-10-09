@@ -485,6 +485,7 @@ def login_page():
                     st.rerun()
                 else:
                     st.session_state.show_forgot_password = True
+                    log_action(f"🚨 Unauthorized: Failed Login Attempt for User ID '{username}'")
                     st.error("⚠️ Invalid User ID or Password.")
                     st.rerun()
                     
@@ -595,6 +596,7 @@ def login_page():
                     st.success("✅ Authentication Successful! Redirecting…")
                     time.sleep(1); st.rerun()
                 else:
+                    log_action(f"🚨 Unauthorized: Failed MFA Attempt for User ID '{tmp_user}'")
                     st.error("⚠️ Invalid MFA Code. Please try again.")
             if cancel_clicked: st.session_state.auth_step = "credentials"; st.rerun()
             

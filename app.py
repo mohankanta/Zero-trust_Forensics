@@ -1489,7 +1489,7 @@ def tool_exiftool():
     st.markdown("""<div class="tool-header"><div class="tool-title">📷 Exif Metadata Extractor</div><div class="tool-sub">Image Forensics | GPS Location Mapping (Powered by Python ExifRead)</div></div>""", unsafe_allow_html=True)
     
     st.markdown("### Backend Image Scanner")
-    uploaded_file = st.file_uploader("Upload Image (JPG/TIFF) for Metadata Extraction", type=["jpg", "jpeg", "tiff"])
+    uploaded_file = st.file_uploader("Upload Image for Metadata Extraction (All Formats)", type=["jpg", "jpeg", "png", "tiff", "webp", "gif", "bmp", "heic"])
     
     if uploaded_file and st.button("▶ Extract Real EXIF Data", use_container_width=True, type="primary"):
         import exifread

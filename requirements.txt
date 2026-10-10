@@ -6,3 +6,5 @@ pefile
 Pillow
 exifread
 requests
+
+qrcode

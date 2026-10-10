@@ -2580,6 +2580,31 @@ def workspace():
 
         st.markdown("---")
 
+        st.header("📲 Poster QR Code Generator")
+        st.markdown("Generate a scannable QR code for the public to file complaints.")
+        qr_url = st.text_input("Enter your exact website link:", value="https://zero-trust-forensics.streamlit.app")
+        
+        c1, c2 = st.columns([1, 2])
+        with c1:
+            if st.button("Generate QR Code", use_container_width=True):
+                try:
+                    import qrcode
+                    from io import BytesIO
+                    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=4)
+                    qr.add_data(qr_url)
+                    qr.make(fit=True)
+                    
+                    img = qr.make_image(fill_color="#1b2a3b", back_color="white")
+                    buf = BytesIO()
+                    img.save(buf, format="PNG")
+                    
+                    st.image(buf, width=250)
+                    st.download_button(label="⬇️ Download QR Image", data=buf.getvalue(), file_name="ZeroTrust_QR_Code.png", mime="image/png", use_container_width=True)
+                except Exception as e:
+                    st.error(f"Error generating QR: {e}")
+
+        st.markdown("---")
+
         st.header("🚨 Admin Action Required: Unassigned Complaints")
         unassigned = {cid: c for cid, c in all_complaints.items() if c.get("status") == "Unassigned"}
         if not unassigned: st.success("No new public complaints pending assignment.")

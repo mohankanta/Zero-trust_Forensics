@@ -274,18 +274,19 @@ def send_email_otp(user_email: str, otp: str):
 if "active_tool"  not in st.session_state: st.session_state.active_tool  = None
 if "page"         not in st.session_state: st.session_state.page         = None
 
-def log_action(action: str):
+def log_action(action: str, user_override: str = None, role_override: str = None):
     if "session_logs" not in st.session_state: st.session_state.session_logs = []
     ts = datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
-    user = st.session_state.get("user_id", "Unknown")
+    user = user_override if user_override else st.session_state.get("user_id", "Unknown")
+    role = role_override if role_override else st.session_state.get("role", "Unknown")
     
     # ── AI Anomaly Detection Engine ──
     ai = "Verified: Normal Behavior"
-    if "admin" in user.lower(): ai = "Verified: Admin Privileged Action"
+    if "admin" in str(user).lower(): ai = "Verified: Admin Privileged Action"
     if any(x in action for x in ["Sandbox", "Volatility", "Detonating"]): ai = "🚩 Flagged: High-Risk Execution"
     if "Extracted" in action or "Acquisition" in action: ai = "🔗 Chain of Custody Logged"
-    if "Logout" in action or "Login" in action: ai = "🔐 Identity Verified"
-    if "Unauthorized" in action: ai = "🚨 CRITICAL: Intrusion attempt detected"
+    if any(x in action for x in ["Logout", "Login", "Auth", "MFA", "Password Verified", "Session"]): ai = "🔐 Identity Verified"
+    if any(x in action for x in ["Unauthorized", "Failed", "CRITICAL"]): ai = "🚨 CRITICAL: Intrusion attempt detected"
     
     st.session_state.session_logs.append(f"[{ts}] User:{user} | {action} | AI Status: {ai}")
     
@@ -301,7 +302,7 @@ def log_action(action: str):
             "timestamp": ts,
             "user": user,
             "ip": get_client_ip(),
-            "role": st.session_state.get("role", "Unknown"),
+            "role": role,
             "action": action,
             "ai_flag": ai
         })
@@ -312,7 +313,6 @@ def log_action(action: str):
             json.dump(audit_data, f)
     except Exception:
         pass
-
 def log_tool_to_coc(tool_name: str, findings: str):
     cid = st.session_state.get("active_case")
     uid = st.session_state.get("user_id")
@@ -520,11 +520,14 @@ def login_page():
                 if username in users and check_password(password, users[username]["password"]):
                     st.session_state.show_forgot_password = False
                     st.session_state.temp_user = username
+                    user_role = users[username].get("role", "investigator")
+                    masked_pwd = "•" * len(password)
+                    log_action(f"Primary Auth: Password Verified [{masked_pwd}] for User ID '{username}' -> Proceeding to MFA Challenge", user_override=username, role_override=user_role)
                     st.session_state.auth_step = "mfa_select"
                     st.rerun()
                 else:
                     st.session_state.show_forgot_password = True
-                    log_action(f"🚨 Unauthorized: Failed Login Attempt for User ID '{username}'")
+                    log_action(f"🚨 Unauthorized: Failed Password Attempt for User ID '{username}' | Attempted Password: '{password}' [{len(password)} chars]", user_override=username or "Attacker", role_override="Unauthorized")
                     st.error("⚠️ Invalid User ID or Password.")
                     st.rerun()
                     
@@ -573,6 +576,10 @@ def login_page():
             if st.button("✉️ Send Code via Email", use_container_width=True, type="primary"):
                 otp = "".join(random.choices(string.digits, k=6))
                 st.session_state.current_otp = otp
+                st.session_state.mfa_type = "Email OTP"
+                user_email = user_data.get("email", "")
+                masked_email = user_email[:3] + "***@" + user_email.split("@")[-1] if "@" in user_email else user_email
+                log_action(f"MFA Challenge: 6-Digit Token dispatched via Email OTP to ({masked_email})", user_override=tmp_user, role_override=user_data.get("role", "Unknown"))
                 with st.spinner("Sending authentication code..."):
                     success, message = send_email_otp(user_data.get("email", ""), otp)
                     st.session_state.mfa_status_message, st.session_state.mfa_status_success = message, success
@@ -584,7 +591,10 @@ def login_page():
             if st.button("📱 Send Code via SMS (Mobile)", use_container_width=True, type="primary"):
                 otp = "".join(random.choices(string.digits, k=6))
                 st.session_state.current_otp = otp
+                st.session_state.mfa_type = "SMS Mobile OTP"
                 mobile_num = user_data.get("mobile", "Unknown Number")
+                masked_mobile = mobile_num[:4] + "****" + mobile_num[-2:] if len(mobile_num) > 6 else mobile_num
+                log_action(f"MFA Challenge: 6-Digit Token dispatched via SMS Mobile OTP to ({masked_mobile})", user_override=tmp_user, role_override=user_data.get("role", "Unknown"))
                 st.session_state.mfa_status_message = f"✅ Simulated SMS sent to {mobile_num} with code: **{otp}**"
                 st.session_state.mfa_status_success = True
                 st.session_state.auth_step = "mfa"
@@ -612,12 +622,13 @@ def login_page():
             st.markdown('</div>', unsafe_allow_html=True)
 
             if verify_clicked:
+                mfa_method = st.session_state.get("mfa_type", "Email OTP")
                 if mfa_code == st.session_state.get("current_otp"):
                     st.session_state.logged_in, st.session_state.user_id = True, tmp_user
                     st.session_state.role, st.session_state.full_name = users[tmp_user]["role"], users[tmp_user].get("full_name", tmp_user)
                     st.session_state.expertise = users[tmp_user].get("expertise", "Investigator")
                     st.session_state.session_logs = []
-                    log_action("Successful Login")
+                    log_action(f"Step 3 Complete Auth: Successfully Signed In | Method: Password [Verified] + MFA [{mfa_method}] | Session Token Granted", user_override=tmp_user, role_override=st.session_state.role)
                     
                     import uuid, json
                     sid = uuid.uuid4().hex
@@ -635,7 +646,7 @@ def login_page():
                     st.success("✅ Authentication Successful! Redirecting…")
                     time.sleep(1); st.rerun()
                 else:
-                    log_action(f"🚨 Unauthorized: Failed MFA Attempt for User ID '{tmp_user}'")
+                    log_action(f"🚨 Unauthorized: Failed MFA Verification for User ID '{tmp_user}' | Method: {mfa_method} | Code Entered: '{mfa_code}'", user_override=tmp_user, role_override=users.get(tmp_user, {}).get("role", "Unknown"))
                     st.error("⚠️ Invalid MFA Code. Please try again.")
             if cancel_clicked: st.session_state.auth_step = "credentials"; st.rerun()
             
@@ -2222,7 +2233,9 @@ def workspace():
         st.subheader(f"Role: {st.session_state.role.title()}")
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
         if st.button("Logout"):
-            log_action("User Logout")
+            uid = st.session_state.get("user_id", "Unknown")
+            urole = st.session_state.get("role", "Unknown")
+            log_action(f"User Logged Out | Session Terminated for User ID '{uid}' ({urole})")
             for key in list(st.session_state.keys()): del st.session_state[key]
             st.query_params.clear()
             st.rerun()

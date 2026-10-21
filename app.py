@@ -382,8 +382,13 @@ def public_complaint_page():
         st.markdown("<div style='height:15px'></div>", unsafe_allow_html=True)
         submit_btn = st.button("SUBMIT COMPLAINT", key="submit_complaint", use_container_width=True)
         st.markdown('<div class="secondary-btn">', unsafe_allow_html=True)
-        if st.button("⬅️ Cancel & Return to Login", key="cancel_complaint", use_container_width=True):
-            st.session_state.page = "login"; st.rerun()
+        cb1, cb2 = st.columns(2)
+        with cb1:
+            if st.button("⬅️ Return to Login", key="cancel_complaint", use_container_width=True):
+                st.session_state.page = "login"; st.rerun()
+        with cb2:
+            if st.button("🔍 Track Existing Case", key="goto_track_from_comp", use_container_width=True):
+                st.session_state.page = "track_complaint"; st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
         
         if submit_btn:
@@ -420,12 +425,230 @@ def public_complaint_page():
                     complaint_data["chain_of_custody"] = [{"timestamp": complaint_data['timestamp'], "action": "Digital Evidence Uploaded", "actor": name, "location": "Public Intake Portal"}]
                 
                 save_complaint(case_id, complaint_data)
-                st.success(f"✅ Official Complaint Registered. Your Reference ID is **{case_id}**.")
-                time.sleep(2); st.session_state.page = "login"; st.rerun()
+                st.session_state.track_search_query = case_id
+                st.success(f"✅ Official Complaint Registered! Your Reference ID is **{case_id}**.")
+                time.sleep(2); st.session_state.page = "track_complaint"; st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  REGISTER & LOGIN PAGES (Centered Interface)
 # ══════════════════════════════════════════════════════════════════════════════
+
+def track_complaint_page():
+    _, col, _ = st.columns([1, 2.2, 1])
+    with col:
+        st.markdown("""<div class="auth-card" style="max-width:850px">
+            <div class="card-icon">🔍</div><div class="card-title">Track Cyber Incident Status</div>
+            <div class="card-sub">Public Grievance Redressal & Live Case Monitoring</div></div>""", unsafe_allow_html=True)
+        
+        st.markdown("<div style='height:15px'></div>", unsafe_allow_html=True)
+        
+        # Search Box
+        sc1, sc2 = st.columns([3, 1])
+        with sc1:
+            query = st.text_input("Search Case", placeholder="Enter Case Reference ID (e.g., CASE-7211) or Registered Phone Number", label_visibility="collapsed")
+        with sc2:
+            search_btn = st.button("🔍 Search", use_container_width=True, type="primary")
+            
+        if "track_search_query" not in st.session_state:
+            st.session_state.track_search_query = ""
+            
+        if search_btn and query.strip():
+            st.session_state.track_search_query = query.strip()
+            
+        active_query = st.session_state.get("track_search_query", "").strip()
+        
+        if not active_query:
+            st.info("💡 **How to track your case:** Enter the official Reference ID received upon filing your complaint (e.g. `CASE-7211`), or enter the phone number you registered with.")
+        else:
+            complaints = load_complaints()
+            q_clean = active_query.lower()
+            matches = [
+                c for cid, c in complaints.items()
+                if (q_clean == cid.lower() or 
+                    q_clean in cid.lower() or 
+                    q_clean == str(c.get("victim_phone", "")).strip().lower() or 
+                    (len(q_clean) >= 4 and q_clean in str(c.get("victim_name", "")).strip().lower()))
+            ]
+            
+            if not matches:
+                st.error(f"❌ No record found matching **'{active_query}'**. Please verify your Reference ID or contact number.")
+            else:
+                # If multiple matches, let user select
+                if len(matches) > 1:
+                    st.markdown(f"<div style='color:#38bdf8; font-weight:600; margin-bottom:8px;'>Found {len(matches)} matching incident files. Select case:</div>", unsafe_allow_html=True)
+                    case_opts = {f"{c['case_id']} - {c.get('category', 'Incident')} ({c.get('timestamp', '')[:10]})": c for c in matches}
+                    selected_label = st.selectbox("Select Case File", list(case_opts.keys()))
+                    c = case_opts[selected_label]
+                else:
+                    c = matches[0]
+                    
+                cid = c.get("case_id", "Unknown")
+                log_action(f"Public Portal: Citizen tracked status of Case [{cid}]", user_override="Citizen/Public", role_override="Viewer")
+                
+                # --- Calculate Stage ---
+                is_assigned = c.get("status") in ["Assigned", "In Progress", "Completed"] or bool(c.get("assigned_to"))
+                is_under_forensics = is_assigned and (len(c.get("chain_of_custody", [])) > 1 or c.get("status") in ["In Progress", "Completed"])
+                is_completed = c.get("status") in ["Completed", "Resolved", "Closed"]
+                
+                # Status Pills
+                if is_completed:
+                    status_badge = '<span style="background:#064e3b; color:#34d399; padding:4px 12px; border-radius:12px; font-weight:700; font-size:12px; border:1px solid #059669;">🟢 CASE RESOLVED / CLOSED</span>'
+                elif is_under_forensics:
+                    status_badge = '<span style="background:#1e1b4b; color:#a78bfa; padding:4px 12px; border-radius:12px; font-weight:700; font-size:12px; border:1px solid #7c3aed;">🟣 ACTIVE FORENSIC EXAMINATION</span>'
+                elif is_assigned:
+                    status_badge = '<span style="background:#0c4a6e; color:#38bdf8; padding:4px 12px; border-radius:12px; font-weight:700; font-size:12px; border:1px solid #0284c7;">🔵 ASSIGNED TO SPECIALIST UNIT</span>'
+                else:
+                    status_badge = '<span style="background:#78350f; color:#fde047; padding:4px 12px; border-radius:12px; font-weight:700; font-size:12px; border:1px solid #d97706;">🟡 PENDING ADMIN TRIAGE</span>'
+                
+                # --- Visual Progress Stepper ---
+                c_step1 = "#22c55e" # Always Done
+                c_step2 = "#22c55e" if is_assigned else "#475569"
+                c_step3 = "#22c55e" if is_completed else ("#38bdf8" if is_under_forensics else "#475569")
+                c_step4 = "#22c55e" if is_completed else "#475569"
+                
+                st.markdown(f"""
+                <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:20px; margin-top:15px; margin-bottom:20px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #1e293b; padding-bottom:12px;">
+                        <div>
+                            <span style="color:#94a3b8; font-size:12px; text-transform:uppercase; font-weight:700;">Case Reference ID</span>
+                            <div style="color:#38bdf8; font-size:22px; font-weight:800; letter-spacing:1px;">{cid}</div>
+                        </div>
+                        <div>{status_badge}</div>
+                    </div>
+                    
+                    <!-- Stepper Visual -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; position:relative; margin:25px 10px 30px 10px;">
+                        <div style="text-align:center; flex:1;">
+                            <div style="width:36px; height:36px; border-radius:50%; background:{c_step1}; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-weight:700; box-shadow:0 0 10px {c_step1}88;">✓</div>
+                            <div style="color:#e2e8f0; font-size:11px; font-weight:600; margin-top:6px;">1. Filed</div>
+                        </div>
+                        <div style="height:3px; flex:1; background:{c_step2}; margin-top:-18px;"></div>
+                        <div style="text-align:center; flex:1;">
+                            <div style="width:36px; height:36px; border-radius:50%; background:{c_step2}; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-weight:700;">{'✓' if is_assigned else '2'}</div>
+                            <div style="color:#e2e8f0; font-size:11px; font-weight:600; margin-top:6px;">2. Assigned</div>
+                        </div>
+                        <div style="height:3px; flex:1; background:{c_step3}; margin-top:-18px;"></div>
+                        <div style="text-align:center; flex:1;">
+                            <div style="width:36px; height:36px; border-radius:50%; background:{c_step3}; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-weight:700;">{'✓' if is_completed else ('⚡' if is_under_forensics else '3')}</div>
+                            <div style="color:#e2e8f0; font-size:11px; font-weight:600; margin-top:6px;">3. Forensics</div>
+                        </div>
+                        <div style="height:3px; flex:1; background:{c_step4}; margin-top:-18px;"></div>
+                        <div style="text-align:center; flex:1;">
+                            <div style="width:36px; height:36px; border-radius:50%; background:{c_step4}; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-weight:700;">{'✓' if is_completed else '4'}</div>
+                            <div style="color:#e2e8f0; font-size:11px; font-weight:600; margin-top:6px;">4. Disposed</div>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Case Overview Details
+                st.markdown("<h4 style='color:#38bdf8; margin-top:10px;'>📋 Incident Overview</h4>", unsafe_allow_html=True)
+                ov1, ov2 = st.columns(2)
+                with ov1:
+                    st.markdown(f"**Incident Category:** {c.get('category', 'Cyber Incident')}")
+                    st.markdown(f"**Reported On:** {c.get('timestamp', 'N/A')}")
+                    st.markdown(f"**Compromised Asset:** {c.get('compromised_asset', 'Personal Device / Account')}")
+                with ov2:
+                    st.markdown(f"**Ongoing Attack Status:** {c.get('ongoing', 'Stopped')}")
+                    st.markdown(f"**Estimated Financial Impact:** ₹ {c.get('financial_loss', '0') or '0'}")
+                    assigned_unit = "Assigned to Blue Team Cyber Forensics Unit" if is_assigned else "Pending Unit Assignment"
+                    st.markdown(f"**Investigating Unit:** {assigned_unit}")
+                
+                # Official Law Enforcement Update Box
+                if is_completed:
+                    update_text = "<b>Official Resolution:</b> The digital forensic investigation for this incident has been completed. Evidence analysis, threat mitigation, and legal chain of custody documentation are officially archived."
+                    up_border = "#22c55e"
+                elif is_under_forensics:
+                    update_text = "<b>Investigation In Progress:</b> Digital evidence is currently undergoing laboratory forensic examination (EXIF metadata, network packet inspection, or static malware analysis). Chain of custody integrity is actively monitored."
+                    up_border = "#a855f7"
+                elif is_assigned:
+                    update_text = "<b>Assigned to Cyber Unit:</b> Your complaint has been assigned to an authorized forensic investigator. Evidence triage and initial threat verification are underway."
+                    up_border = "#38bdf8"
+                else:
+                    update_text = "<b>Pending Intake Triage:</b> Your complaint is securely stored in the zero-trust intake vault. An administrator is reviewing the threat classification to route it to the appropriate blue-team forensic specialist."
+                    up_border = "#f59e0b"
+                    
+                st.markdown(f"""
+                <div style="background:#1b2a3b; border-left:4px solid {up_border}; padding:14px; border-radius:6px; margin:15px 0;">
+                    <div style="color:#e2e8f0; font-size:13px; line-height:1.5;">{update_text}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Public Action Milestones
+                coc_list = c.get("chain_of_custody", [])
+                if coc_list:
+                    st.markdown("<h4 style='color:#38bdf8; margin-top:15px;'>🕒 Official Action Timeline</h4>", unsafe_allow_html=True)
+                    for item in coc_list[-4:]:
+                        ts = item.get("timestamp", "")
+                        action = item.get("action", "Action Recorded")
+                        st.markdown(f"""
+                        <div style="background:#0f172a; border-left:3px solid #38bdf8; padding:8px 12px; margin-bottom:6px; border-radius:4px; font-size:12px;">
+                            <span style="color:#94a3b8; font-weight:600;">[{ts}]</span> <span style="color:#e2e8f0;">{action}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                # Download Official Acknowledgment Receipt
+                st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+                receipt_html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Official Complaint Acknowledgment - {cid}</title>
+<style>
+body {{ font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.6; }}
+.header {{ border-bottom: 3px solid #0284c7; padding-bottom: 15px; margin-bottom: 25px; }}
+.title {{ font-size: 24px; font-weight: 800; color: #0369a1; text-transform: uppercase; }}
+.sub {{ font-size: 13px; color: #64748b; }}
+.badge {{ display: inline-block; padding: 6px 14px; border-radius: 6px; font-weight: 700; background: #e0f2fe; color: #0369a1; margin: 15px 0; }}
+table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+th, td {{ border: 1px solid #cbd5e1; padding: 10px 14px; text-align: left; font-size: 13px; }}
+th {{ background: #f1f5f9; color: #334155; }}
+.footer {{ margin-top: 40px; border-top: 1px solid #cbd5e1; padding-top: 15px; font-size: 11px; color: #64748b; text-align: center; }}
+</style>
+</head>
+<body>
+<div class="header">
+    <div class="title">Zero-Trust Cyber Incident Grievance Portal</div>
+    <div class="sub">Official Public Complaint Acknowledgment & Chain of Custody Record</div>
+</div>
+<div class="badge">Reference ID: {cid}</div>
+<p>This document serves as formal legal confirmation that the following cyber incident complaint was logged into the Zero-Trust Digital Forensics intake vault.</p>
+<table>
+    <tr><th>Case Reference ID</th><td><b>{cid}</b></td></tr>
+    <tr><th>Complainant Name</th><td>{c.get('victim_name', 'Anonymous')}</td></tr>
+    <tr><th>Incident Category</th><td>{c.get('category', 'Cyber Crime')}</td></tr>
+    <tr><th>Date & Time of Registration</th><td>{c.get('timestamp', 'N/A')} (IST)</td></tr>
+    <tr><th>Current Investigation Status</th><td><b>{c.get('status', 'Unassigned')}</b></td></tr>
+    <tr><th>Compromised Asset</th><td>{c.get('compromised_asset', 'N/A')}</td></tr>
+    <tr><th>Financial Loss Claimed</th><td>₹ {c.get('financial_loss', '0') or '0'}</td></tr>
+</table>
+<p><b>Notice:</b> Digital evidence associated with this complaint has been cataloged under strict cryptographic integrity standards. For updates, visit the portal and search using Reference ID: <b>{cid}</b>.</p>
+<div class="footer">
+    Generated automatically by Zero-Trust Forensics System • All actions cryptographically logged.
+</div>
+</body>
+</html>"""
+                st.download_button(
+                    label="📄 Download Official Acknowledgment Receipt",
+                    data=receipt_html,
+                    file_name=f"Complaint_Receipt_{cid}.html",
+                    mime="text/html",
+                    use_container_width=True
+                )
+                
+        st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+        st.markdown('<div class="secondary-btn">', unsafe_allow_html=True)
+        nav_col1, nav_col2 = st.columns(2)
+        with nav_col1:
+            if st.button("← Back to Portal Login", key="track_back_login", use_container_width=True):
+                st.session_state.page = "login"
+                st.rerun()
+        with nav_col2:
+            if st.button("🚨 File a New Complaint", key="track_to_complaint", use_container_width=True):
+                st.session_state.page = "complaint"
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
 def register_page(first_time: bool = False):
     _, col, _ = st.columns([1, 1.7, 1])
     with col:
@@ -509,11 +732,15 @@ def login_page():
                 if st.button("REGISTER ACCOUNT", key="goto_register", use_container_width=True):
                     st.session_state.page = "register"; st.rerun()
             
-            st.markdown('<div class="or-divider">CITIZEN PORTAL</div>', unsafe_allow_html=True)
-            st.markdown('<div class="secondary-btn" style="margin-bottom: 18px;">', unsafe_allow_html=True)
-            if st.button("🚨 File a Public Complaint", key="goto_complaint", use_container_width=True):
-                st.session_state.page = "complaint"; st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="or-divider">CITIZEN SERVICES</div>', unsafe_allow_html=True)
+            c_btn1, c_btn2 = st.columns(2)
+            with c_btn1:
+                if st.button("🚨 File Complaint", key="goto_complaint", use_container_width=True):
+                    st.session_state.page = "complaint"; st.rerun()
+            with c_btn2:
+                if st.button("🔍 Track Case Status", key="goto_track", use_container_width=True):
+                    st.session_state.page = "track_complaint"; st.rerun()
+            st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
 
             if login_clicked:
                 users = load_users()
@@ -2912,6 +3139,7 @@ def main():
     </style>
     """, unsafe_allow_html=True)
     if st.session_state.page == "complaint": public_complaint_page(); return
+    if st.session_state.page == "track_complaint": track_complaint_page(); return
     if st.session_state.page == "register": register_page(first_time=False); return
     if st.session_state.page == "login": login_page(); return
     if len(users) == 0: register_page(first_time=True)

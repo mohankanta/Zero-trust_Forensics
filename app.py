@@ -2514,8 +2514,8 @@ def workspace():
     if st.session_state.role == "admin":
         # --- NEW: AI GLOBAL MONITOR ---
         st.header("🧠 AI Global Security SOC")
-        with st.expander("👁️ Expand Live Activity & Threat Dashboard", expanded=False):
-            st.markdown("This AI-driven SIEM tracks every action taken by every user across the entire Zero Trust platform in real-time.")
+        with st.expander("👁️ Expand Live Activity & Visual Threat SOC", expanded=True):
+            st.markdown("This AI-driven SIEM tracks every action taken across the entire Zero Trust platform in real-time with visual analytics.")
         
             try:
                 import json, pandas as pd
@@ -2527,33 +2527,186 @@ def workspace():
                 audit_data = []
             
             if not audit_data:
-                st.info("No global activity logged yet.")
+                st.info("No global activity logged yet. Perform actions or simulate logins to populate real-time SOC analytics.")
             else:
                 total_actions = len(audit_data)
-                recent = audit_data[-50:] if total_actions > 50 else audit_data
-                critical_flags = sum(1 for x in recent if "CRITICAL" in x["ai_flag"] or "Flagged" in x["ai_flag"])
-                active_users = len(set(x["user"] for x in recent if x["user"] != "Unknown"))
-            
+                df_audit = pd.DataFrame(audit_data)
+                if "ip" not in df_audit.columns: df_audit["ip"] = "Unknown IP"
+                
+                # --- KPI Metrics Calculation ---
+                critical_flags = sum(1 for x in audit_data if "CRITICAL" in str(x.get("ai_flag", "")) or "Failed" in str(x.get("action", "")) or "Unauthorized" in str(x.get("action", "")))
+                active_users = len(set(x.get("user", "Unknown") for x in audit_data if x.get("user") != "Unknown"))
+                unique_ips = len(set(str(x.get("ip", "Unknown IP")) for x in audit_data if str(x.get("ip", "")).strip() not in ["", "Unknown IP"]))
+                forensic_runs = sum(1 for x in audit_data if any(k in str(x.get("action", "")) for k in ["Tool:", "ExifTool", "PCAP", "VirusTotal", "Steganography", "Hash", "Malware", "Volatility", "Extracted", "Acquisition"]))
+                
                 if critical_flags > 0:
-                    sys_status = "⚠️ WARNING: Suspicious/High-Risk Forensic Activity Detected"
+                    sys_status = "⚠️ WARNING: Suspicious Intrusion Activity Detected"
                     color = "#f87171"
                 else:
-                    sys_status = "✅ SECURE: No Anomalies Detected"
+                    sys_status = "✅ SECURE: All Perimeter Defenses Normal"
                     color = "#4ade80"
                 
                 st.markdown(f"""
-                <div style="background:#1b2a3b; border-left:4px solid {color}; padding:15px; border-radius:5px; margin-bottom:20px; box-shadow:0 4px 6px rgba(0,0,0,0.3);">
-                    <h4 style="margin-top:0; color:{color};">{sys_status}</h4>
-                    <b style="color:#e0e6f0;">AI Security Analysis:</b> Tracking {total_actions} total events. In the recent window, {active_users} unique user(s) performed operations. {critical_flags} high-risk execution(s) were isolated. All evidence tampering vectors are currently blocked.
+                <div style="background:#1b2a3b; border-left:4px solid {color}; padding:14px 18px; border-radius:6px; margin-bottom:18px; box-shadow:0 4px 6px rgba(0,0,0,0.3);">
+                    <h4 style="margin-top:0; margin-bottom:6px; color:{color};">{sys_status}</h4>
+                    <span style="color:#cbd5e1; font-size:14px;"><b>AI Telemetry Engine:</b> Ingestion pipeline active. Tracking <b>{total_actions}</b> platform events across <b>{unique_ips}</b> unique network devices and <b>{active_users}</b> user accounts. Zero-Trust firewall enforcement is active.</span>
                 </div>
                 """, unsafe_allow_html=True)
-            
-                df_audit = pd.DataFrame(audit_data)
-                # Ensure backwards compatibility for old logs without IP
-                if "ip" not in df_audit.columns: df_audit["ip"] = "Unknown IP"
-                df_audit = df_audit[["timestamp", "ip", "user", "role", "ai_flag", "action"]]
-                # Style the dataframe for dark mode
-                st.dataframe(df_audit.sort_values("timestamp", ascending=False), use_container_width=True, hide_index=True, height=250)
+                
+                # --- KPI Metric Cards ---
+                kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+                with kpi1:
+                    st.markdown(f"""<div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:12px; text-align:center;">
+                        <div style="color:#94a3b8; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Total Events</div>
+                        <div style="color:#38bdf8; font-size:24px; font-weight:700; margin-top:2px;">{total_actions}</div>
+                    </div>""", unsafe_allow_html=True)
+                with kpi2:
+                    alert_c = "#ef4444" if critical_flags > 0 else "#22c55e"
+                    st.markdown(f"""<div style="background:#0f172a; border:1px solid {alert_c}55; border-radius:8px; padding:12px; text-align:center;">
+                        <div style="color:#94a3b8; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">🚨 Intrusions / Attacks</div>
+                        <div style="color:{alert_c}; font-size:24px; font-weight:700; margin-top:2px;">{critical_flags}</div>
+                    </div>""", unsafe_allow_html=True)
+                with kpi3:
+                    st.markdown(f"""<div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:12px; text-align:center;">
+                        <div style="color:#94a3b8; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">🌐 Monitored IPs</div>
+                        <div style="color:#a855f7; font-size:24px; font-weight:700; margin-top:2px;">{unique_ips}</div>
+                    </div>""", unsafe_allow_html=True)
+                with kpi4:
+                    st.markdown(f"""<div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:12px; text-align:center;">
+                        <div style="color:#94a3b8; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">🔬 Forensic Tools Run</div>
+                        <div style="color:#f59e0b; font-size:24px; font-weight:700; margin-top:2px;">{forensic_runs}</div>
+                    </div>""", unsafe_allow_html=True)
+                
+                st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+                
+                # --- VISUAL SOC CHARTS ---
+                try:
+                    import plotly.express as px
+                    import plotly.graph_objects as go
+                    
+                    # Chart Row 1: Threat Donut & Timeline
+                    c1, c2 = st.columns(2)
+                    
+                    with c1:
+                        st.markdown("<b style='color:#e2e8f0; font-size:14px;'>📊 AI Threat & Behavior Distribution</b>", unsafe_allow_html=True)
+                        def categorize_flag(flag):
+                            f = str(flag).lower()
+                            if "critical" in f or "intrusion" in f or "unauthorized" in f:
+                                return "Intrusion / Threat"
+                            elif "flagged" in f or "high-risk" in f:
+                                return "High-Risk Execution"
+                            elif "admin" in f or "privileged" in f:
+                                return "Admin Privileged"
+                            elif "custody" in f or "chain" in f:
+                                return "Chain of Custody"
+                            elif "identity" in f or "login" in f:
+                                return "Verified Auth"
+                            else:
+                                return "Normal Activity"
+                        
+                        df_audit["threat_category"] = df_audit["ai_flag"].apply(categorize_flag)
+                        cat_df = df_audit["threat_category"].value_counts().reset_index()
+                        cat_df.columns = ["Threat Category", "Count"]
+                        color_map = {
+                            "Intrusion / Threat": "#ef4444",
+                            "High-Risk Execution": "#f59e0b",
+                            "Admin Privileged": "#3b82f6",
+                            "Chain of Custody": "#8b5cf6",
+                            "Verified Auth": "#06b6d4",
+                            "Normal Activity": "#10b981"
+                        }
+                        fig_donut = px.pie(
+                            cat_df,
+                            names="Threat Category",
+                            values="Count",
+                            hole=0.55,
+                            color="Threat Category",
+                            color_discrete_map=color_map,
+                            template="plotly_dark"
+                        )
+                        fig_donut.update_layout(
+                            margin=dict(l=10, r=10, t=10, b=10),
+                            height=250,
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            legend=dict(orientation="h", yanchor="bottom", y=-0.35, xanchor="center", x=0.5, font=dict(size=10))
+                        )
+                        st.plotly_chart(fig_donut, use_container_width=True)
+                        
+                    with c2:
+                        st.markdown("<b style='color:#e2e8f0; font-size:14px;'>📈 Platform Activity Volume (Timeline)</b>", unsafe_allow_html=True)
+                        try:
+                            df_audit["hour"] = pd.to_datetime(df_audit["timestamp"]).dt.strftime("%H:00")
+                            hourly = df_audit.groupby("hour").size().reset_index(name="Events")
+                            fig_time = px.bar(hourly, x="hour", y="Events", template="plotly_dark", color_discrete_sequence=["#06b6d4"])
+                            fig_time.update_layout(
+                                margin=dict(l=10, r=10, t=10, b=10),
+                                height=250,
+                                paper_bgcolor="rgba(0,0,0,0)",
+                                plot_bgcolor="rgba(0,0,0,0)",
+                                xaxis_title=None,
+                                yaxis_title="Events"
+                            )
+                            st.plotly_chart(fig_time, use_container_width=True)
+                        except Exception:
+                            st.info("Insufficient timestamps for timeline curve.")
+                    
+                    # Chart Row 2: Forensic Tool Usage & Top Client IPs
+                    c3, c4 = st.columns(2)
+                    
+                    with c3:
+                        st.markdown("<b style='color:#e2e8f0; font-size:14px;'>🔬 Forensic Tools Utilization</b>", unsafe_allow_html=True)
+                        def extract_tool(act):
+                            a = str(act).lower()
+                            if "exif" in a: return "ExifTool / GPS"
+                            if "pcap" in a or "packet" in a: return "PCAP Analyzer"
+                            if "malware" in a or "sandbox" in a or "pefile" in a: return "Malware Sandbox"
+                            if "stegan" in a: return "LSB Steganography"
+                            if "hash" in a or "crack" in a: return "Hash Cracker"
+                            if "virustotal" in a: return "VirusTotal API"
+                            if "geolocation" in a or "trace" in a: return "IP Geolocation"
+                            return None
+                        
+                        df_audit["tool_name"] = df_audit["action"].apply(extract_tool)
+                        tool_sub = df_audit[df_audit["tool_name"].notna()]
+                        if not tool_sub.empty:
+                            tool_counts = tool_sub["tool_name"].value_counts().reset_index()
+                            tool_counts.columns = ["Tool", "Runs"]
+                            fig_tools = px.bar(tool_counts, x="Runs", y="Tool", orientation="h", template="plotly_dark", color_discrete_sequence=["#a855f7"])
+                            fig_tools.update_layout(
+                                margin=dict(l=10, r=10, t=10, b=10),
+                                height=230,
+                                paper_bgcolor="rgba(0,0,0,0)",
+                                plot_bgcolor="rgba(0,0,0,0)",
+                                xaxis_title="Executions",
+                                yaxis_title=None
+                            )
+                            st.plotly_chart(fig_tools, use_container_width=True)
+                        else:
+                            st.markdown("<div style='background:#0f172a; padding:30px; border-radius:6px; text-align:center; color:#94a3b8; font-size:13px;'>No forensic tools executed in current session logs yet.<br>Launch a tool from an active case to see utilization metrics.</div>", unsafe_allow_html=True)
+                            
+                    with c4:
+                        st.markdown("<b style='color:#e2e8f0; font-size:14px;'>🌐 Origin Device IPs & Traffic Volume</b>", unsafe_allow_html=True)
+                        ip_counts = df_audit["ip"].value_counts().head(6).reset_index()
+                        ip_counts.columns = ["Device IP", "Events"]
+                        fig_ip = px.bar(ip_counts, x="Device IP", y="Events", template="plotly_dark", color_discrete_sequence=["#38bdf8"])
+                        fig_ip.update_layout(
+                            margin=dict(l=10, r=10, t=10, b=10),
+                            height=230,
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            xaxis_title=None,
+                            yaxis_title="Events"
+                        )
+                        st.plotly_chart(fig_ip, use_container_width=True)
+                
+                except Exception as e:
+                    st.warning(f"Visual charts loading: {e}")
+                
+                st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
+                st.markdown("<b style='color:#e2e8f0; font-size:14px;'>📋 Detailed Telemetry Event Stream</b>", unsafe_allow_html=True)
+                df_view = df_audit[["timestamp", "ip", "user", "role", "ai_flag", "action"]]
+                st.dataframe(df_view.sort_values("timestamp", ascending=False), use_container_width=True, hide_index=True, height=260)
             
         st.markdown("---")
 

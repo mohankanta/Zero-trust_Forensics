@@ -8,3 +8,4 @@ exifread
 requests
 
 qrcode
+plotly

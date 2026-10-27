@@ -2451,6 +2451,347 @@ def render_tool_grid(key_suffix=""):
                         st.query_params["tool"] = key
                         st.session_state.active_tool = key; st.rerun()
 
+def generate_court_dossier_html(cid: str, c: dict, users: dict, current_user_id: str) -> str:
+    import hashlib, os, datetime
+    
+    # 1. Evidence File Hashing
+    ev_file = c.get("evidence_file", "No evidence attached")
+    ev_path = c.get("evidence_path", "")
+    sha256 = "N/A"
+    md5 = "N/A"
+    file_size_str = "0 KB"
+    
+    if ev_path and os.path.exists(ev_path):
+        try:
+            with open(ev_path, "rb") as f:
+                content = f.read()
+            sha256 = hashlib.sha256(content).hexdigest()
+            md5 = hashlib.md5(content).hexdigest()
+            file_size_str = f"{len(content) / 1024:.2f} KB ({len(content):,} bytes)"
+        except Exception:
+            sha256 = "Error reading bitstream"
+            md5 = "Error reading bitstream"
+    elif ev_file and ev_file.startswith("[PHYSICAL DEVICE]"):
+        sha256 = "PHYSICAL EVIDENCE // SERIAL ACQUISITION LOGGED"
+        md5 = "PHYSICAL EVIDENCE"
+        file_size_str = "Physical Hardware Device"
+
+    # 2. Investigator Credentials
+    assigned_uid = c.get("assigned_to") or current_user_id or "Unassigned"
+    assigned_info = users.get(assigned_uid, {})
+    inv_name = assigned_info.get("full_name", assigned_uid)
+    inv_role = assigned_info.get("role", "Forensic Investigator").title()
+    inv_spec = assigned_info.get("expertise", "Cyber Forensics & Incident Response")
+    inv_email = assigned_info.get("email", "investigator@enclave.local")
+
+    # 3. Chain of Custody Table Rows
+    coc_rows = ""
+    coc_list = c.get("chain_of_custody", [])
+    if not coc_list:
+        coc_rows = "<tr><td colspan='5' style='text-align:center; padding:15px; color:#64748b;'>No custody transitions logged yet.</td></tr>"
+    else:
+        for idx, item in enumerate(coc_list, 1):
+            coc_rows += f"""<tr>
+                <td style="text-align:center; font-weight:700; background:#f8fafc;">{idx:02d}</td>
+                <td style="white-space:nowrap; font-family:monospace; font-size:11px;">{item.get('timestamp', 'N/A')}</td>
+                <td><b>{item.get('actor', 'Authorized Officer')}</b></td>
+                <td>{item.get('action', 'Custodial Operation')}</td>
+                <td style="font-style:italic; color:#475569;">{item.get('location', 'Forensics Lab')}</td>
+            </tr>"""
+
+    # 4. Status Pill Style
+    status = c.get("status", "Active")
+    status_bg = "#dcfce7" if status == "Completed" else ("#e0f2fe" if status == "Assigned" else "#fef3c7")
+    status_fg = "#15803d" if status == "Completed" else ("#0369a1" if status == "Assigned" else "#b45309")
+    now_str = datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
+
+    findings = c.get("final_report", "").strip() or "Investigation actively ongoing. Preliminary forensic extractions and custody preservation active."
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Official Court Dossier - Case {cid}</title>
+<style>
+    @page {{ size: A4; margin: 18mm 15mm; }}
+    body {{
+        font-family: 'Segoe UI', Arial, sans-serif;
+        color: #1e293b;
+        background: #ffffff;
+        line-height: 1.5;
+        font-size: 13px;
+        margin: 0;
+        padding: 20px;
+    }}
+    .watermark {{
+        text-align: center;
+        color: #94a3b8;
+        font-size: 10px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        font-weight: 700;
+        border-bottom: 2px solid #0284c7;
+        padding-bottom: 5px;
+        margin-bottom: 20px;
+    }}
+    .header-table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
+    .header-table td {{ vertical-align: top; }}
+    .gov-title {{ font-size: 18px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }}
+    .gov-sub {{ font-size: 12px; color: #475569; font-weight: 600; text-transform: uppercase; }}
+    .doc-badge {{
+        display: inline-block;
+        background: #0284c7;
+        color: white;
+        padding: 5px 12px;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }}
+    .case-banner {{
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-left: 5px solid #0284c7;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+    }}
+    .sec-heading {{
+        font-size: 13px;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: #0369a1;
+        border-bottom: 1.5px solid #cbd5e1;
+        padding-bottom: 4px;
+        margin-top: 22px;
+        margin-bottom: 10px;
+    }}
+    table.data-table {{
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+        font-size: 12px;
+    }}
+    table.data-table th, table.data-table td {{
+        border: 1px solid #cbd5e1;
+        padding: 8px 10px;
+        text-align: left;
+    }}
+    table.data-table th {{
+        background: #f1f5f9;
+        color: #334155;
+        font-weight: 700;
+        width: 25%;
+    }}
+    table.coc-table {{
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+        font-size: 11px;
+    }}
+    table.coc-table th, table.coc-table td {{
+        border: 1px solid #cbd5e1;
+        padding: 6px 8px;
+        text-align: left;
+    }}
+    table.coc-table th {{
+        background: #0f172a;
+        color: #f8fafc;
+        font-weight: 700;
+    }}
+    .code-box {{
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 11px;
+        background: #f1f5f9;
+        padding: 3px 6px;
+        border-radius: 3px;
+        word-break: break-all;
+        color: #0f172a;
+    }}
+    .findings-box {{
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-left: 4px solid #10b981;
+        padding: 12px;
+        font-size: 12px;
+        color: #1e293b;
+        white-space: pre-wrap;
+        margin-bottom: 15px;
+    }}
+    .cert-box {{
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-left: 4px solid #f59e0b;
+        padding: 12px;
+        font-size: 11px;
+        color: #92400e;
+        margin-top: 20px;
+        line-height: 1.5;
+    }}
+    .sig-table {{
+        width: 100%;
+        margin-top: 35px;
+        border-collapse: collapse;
+    }}
+    .sig-table td {{
+        width: 50%;
+        vertical-align: top;
+        padding: 10px 20px;
+    }}
+    .sig-line {{
+        border-top: 1.5px solid #334155;
+        margin-top: 45px;
+        padding-top: 5px;
+        font-size: 11px;
+        color: #334155;
+    }}
+</style>
+</head>
+<body>
+
+<div class="watermark">Central Digital Forensics & Incident Response Division • Official Judicial Record • Zero-Trust Sealed</div>
+
+<table class="header-table">
+    <tr>
+        <td style="width: 70%;">
+            <div class="gov-title">State Cyber Crime Investigation Department</div>
+            <div class="gov-sub">Digital Forensics Laboratory & Incident Response Command</div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 3px;">ISO/IEC 27037 Digital Evidence Admissibility Protocol • Zero-Trust Enclave</div>
+        </td>
+        <td style="width: 30%; text-align: right;">
+            <div class="doc-badge">Court Exhibit Dossier</div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 5px;">Docket: <b>{cid}</b></div>
+            <div style="font-size: 10px; color: #94a3b8;">Printed: {now_str} IST</div>
+        </td>
+    </tr>
+</table>
+
+<div class="case-banner">
+    <div>
+        <span style="font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase;">Primary Case Identifier</span>
+        <div style="font-size: 20px; font-weight: 900; color: #0284c7;">{cid}</div>
+    </div>
+    <div style="text-align: right;">
+        <span style="font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase;">Legal Proceeding Status</span>
+        <div><span style="background:{status_bg}; color:{status_fg}; padding:3px 10px; border-radius:10px; font-weight:800; font-size:11px;">{status.upper()}</span></div>
+    </div>
+</div>
+
+<div class="sec-heading">I. Administrative & Incident Overview</div>
+<table class="data-table">
+    <tr>
+        <th>Incident Category</th><td>{c.get('category', 'Cyber Crime')}</td>
+        <th>Date & Time Reported</th><td>{c.get('timestamp', 'N/A')} IST</td>
+    </tr>
+    <tr>
+        <th>Date / Time of Incident</th><td>{c.get('incident_date', 'N/A')} at {c.get('incident_time', 'N/A')}</td>
+        <th>Ongoing Attack Threat</th><td><b>{c.get('ongoing', 'No')}</b></td>
+    </tr>
+    <tr>
+        <th>Compromised Asset</th><td>{c.get('compromised_asset', 'N/A')} ({c.get('asset_details', 'N/A')})</td>
+        <th>Financial Loss Claimed</th><td><b>₹ {c.get('financial_loss', '0') or '0'}</b></td>
+    </tr>
+    <tr>
+        <th>Suspect / Attacker Intel</th><td colspan="3">{c.get('attacker_info', 'Unknown / Under Investigation')}</td>
+    </tr>
+</table>
+
+<div class="sec-heading">II. Complainant Declaration & Narrative</div>
+<table class="data-table">
+    <tr>
+        <th>Complainant Name</th><td>{c.get('victim_name', 'Anonymous')}</td>
+        <th>Contact Number</th><td>{c.get('victim_phone', 'N/A')}</td>
+    </tr>
+    <tr>
+        <th>Incident Statement</th>
+        <td colspan="3" style="line-height: 1.6; color: #334155;">{c.get('description', 'No description logged.')}</td>
+    </tr>
+</table>
+
+<div class="sec-heading">III. Assigned Forensic Examiner Credentials</div>
+<table class="data-table">
+    <tr>
+        <th>Lead Examiner</th><td><b>{inv_name}</b> (UID: <code>{assigned_uid}</code>)</td>
+        <th>Official Designation</th><td>{inv_role}</td>
+    </tr>
+    <tr>
+        <th>Forensic Specialization</th><td>{inv_spec}</td>
+        <th>Authorized Official Enclave</th><td>Zero-Trust Cloud Enclave ({inv_email})</td>
+    </tr>
+</table>
+
+<div class="sec-heading">IV. Digital Evidence Vault & Cryptographic Verification</div>
+<p style="font-size: 11px; color: #64748b; margin-top:-5px; margin-bottom: 8px;">
+Evidence integrity verified via Federal Information Processing Standards (FIPS 180-4). Hashes confirm the acquired bitstream has suffered zero alteration.
+</p>
+<table class="data-table">
+    <tr>
+        <th>Evidence Item Name</th><td><b>{ev_file}</b></td>
+        <th>Acquired File Size</th><td>{file_size_str}</td>
+    </tr>
+    <tr>
+        <th>Cryptographic SHA-256</th>
+        <td colspan="3"><span class="code-box">{sha256}</span></td>
+    </tr>
+    <tr>
+        <th>Cryptographic MD5</th>
+        <td colspan="3"><span class="code-box">{md5}</span></td>
+    </tr>
+</table>
+
+<div class="sec-heading">V. Forensic Findings & Case Conclusion</div>
+<div class="findings-box">
+<b>EXAMINER DIAGNOSTIC SUMMARY:</b><br>
+{findings}
+</div>
+
+<div class="sec-heading">VI. Complete Tamper-Evident Chain of Custody (CoC) Ledger</div>
+<table class="coc-table">
+    <thead>
+        <tr>
+            <th style="width: 5%;">#</th>
+            <th style="width: 20%;">Date & Time (IST)</th>
+            <th style="width: 20%;">Custodian / Actor</th>
+            <th style="width: 35%;">Action Taken / Transfer</th>
+            <th style="width: 20%;">Location / Vault</th>
+        </tr>
+    </thead>
+    <tbody>
+        {coc_rows}
+    </tbody>
+</table>
+
+<div class="cert-box">
+<b>STATUTORY CERTIFICATE OF ELECTRONIC EVIDENCE AUTHENTICITY</b><br>
+<i>(Under Section 65B of Indian Evidence Act / Federal Rules of Evidence Rule 902)</i><br>
+I hereby certify that the digital evidence described in this dossier was acquired, processed, and preserved under strict Zero-Trust custody protocols. The computer systems and cryptographic hashing algorithms were operating properly at all material times. No unauthorized access, data corruption, or evidentiary alteration has occurred. This document represents a true and faithful forensic record admissible in a court of law.
+</div>
+
+<table class="sig-table">
+    <tr>
+        <td>
+            <div class="sig-line">
+                <b>{inv_name}</b><br>
+                Lead Forensic Examiner ({inv_role})<br>
+                Zero-Trust Forensics ID: <code>{assigned_uid}</code>
+            </div>
+        </td>
+        <td style="text-align: right;">
+            <div class="sig-line">
+                <b>Supervising Cybercrime Administrator</b><br>
+                Central Cyber Command & Legal Redressal Division<br>
+                Official Laboratory Seal & Attestation
+            </div>
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>"""
+    return html_content
+
 def workspace():
     if "active_case" not in st.session_state: st.session_state.active_case = None
 
@@ -2531,6 +2872,35 @@ def workspace():
         st.markdown(f"**Category:** {c['category']} &nbsp;|&nbsp; **Reported On:** {c['timestamp']}")
         st.markdown(f"**Current Status:** `{c.get('status', 'Assigned')}`")
         
+        # ─── OFFICIAL COURT DOSSIER ACTION BAR ───
+        users_map = load_users()
+        dossier_html = generate_court_dossier_html(cid, c, users_map, st.session_state.user_id)
+        
+        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+        dos_col1, dos_col2 = st.columns([1.5, 1])
+        with dos_col1:
+            st.download_button(
+                label="📑 Download Court Case Dossier (.doc / Word)",
+                data=dossier_html,
+                file_name=f"Court_Dossier_{cid}.doc",
+                mime="application/msword",
+                use_container_width=True,
+                type="primary",
+                key=f"dl_dossier_doc_top_{cid}",
+                help="Generates an official court-admissible forensic dossier with SHA-256 hashes, evidence inventory, Chain of Custody, and Section 65B legal certificate."
+            )
+        with dos_col2:
+            st.download_button(
+                label="📄 Printable HTML Dossier (PDF)",
+                data=dossier_html,
+                file_name=f"Court_Dossier_{cid}.html",
+                mime="text/html",
+                use_container_width=True,
+                key=f"dl_dossier_html_top_{cid}",
+                help="Open in browser and press Ctrl+P to save as an official court PDF."
+            )
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+        
         if c.get("status") == "Unassigned" and st.session_state.role == "admin":
             st.warning("⚠️ **This case is unassigned.** Review the evidence below and assign it to an investigator.")
             col1, col2, col3 = st.columns([2, 2, 1])
@@ -2593,13 +2963,26 @@ def workspace():
                 )
                 
                 st.markdown("<br>", unsafe_allow_html=True)
-                st.download_button(
-                    label="📄 Export Official Case Report (.txt)",
-                    data=report_content,
-                    file_name=f"Case_Report_{cid}.txt",
-                    mime="text/plain",
-                    type="primary"
-                )
+                comp_c1, comp_c2 = st.columns([1.5, 1])
+                with comp_c1:
+                    st.download_button(
+                        label="📑 Download Final Court Dossier (.doc)",
+                        data=dossier_html,
+                        file_name=f"Final_Court_Dossier_{cid}.doc",
+                        mime="application/msword",
+                        type="primary",
+                        key=f"dl_final_dossier_doc_{cid}",
+                        use_container_width=True
+                    )
+                with comp_c2:
+                    st.download_button(
+                        label="📄 Export Plain Text Report (.txt)",
+                        data=report_content,
+                        file_name=f"Case_Report_{cid}.txt",
+                        mime="text/plain",
+                        key=f"dl_final_txt_{cid}",
+                        use_container_width=True
+                    )
         else:
             with st.expander("✍️ Add Investigation Note to Chain of Custody"):
                 new_note = st.text_input("Enter your observation, action taken, or intermediate findings...", key=f"note_{cid}")

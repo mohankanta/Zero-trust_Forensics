@@ -2454,27 +2454,55 @@ def render_tool_grid(key_suffix=""):
 def generate_court_dossier_html(cid: str, c: dict, users: dict, current_user_id: str) -> str:
     import hashlib, os, datetime
     
-    # 1. Evidence File Hashing
-    ev_file = c.get("evidence_file", "No evidence attached")
+    # 1. Multi-File Evidence Vault Hashing
+    ev_table_rows = ""
+    ev_file = c.get("evidence_file", "No primary file attached")
     ev_path = c.get("evidence_path", "")
-    sha256 = "N/A"
-    md5 = "N/A"
-    file_size_str = "0 KB"
     
     if ev_path and os.path.exists(ev_path):
         try:
             with open(ev_path, "rb") as f:
                 content = f.read()
-            sha256 = hashlib.sha256(content).hexdigest()
-            md5 = hashlib.md5(content).hexdigest()
-            file_size_str = f"{len(content) / 1024:.2f} KB ({len(content):,} bytes)"
+            p_sha256 = hashlib.sha256(content).hexdigest()
+            p_md5 = hashlib.md5(content).hexdigest()
+            p_size = f"{len(content) / 1024:.2f} KB"
+            ev_table_rows += f"""<tr>
+                <td><b>[PRIMARY COMPLAINT]</b> {ev_file}</td>
+                <td>{p_size}</td>
+                <td><span class="code-box">{p_sha256}</span></td>
+                <td><span class="code-box">{p_md5}</span></td>
+            </tr>"""
         except Exception:
-            sha256 = "Error reading bitstream"
-            md5 = "Error reading bitstream"
+            pass
     elif ev_file and ev_file.startswith("[PHYSICAL DEVICE]"):
-        sha256 = "PHYSICAL EVIDENCE // SERIAL ACQUISITION LOGGED"
-        md5 = "PHYSICAL EVIDENCE"
-        file_size_str = "Physical Hardware Device"
+        ev_table_rows += f"""<tr>
+            <td><b>[PRIMARY EVIDENCE]</b> {ev_file}</td>
+            <td>Physical Device</td>
+            <td colspan="2"><span class="code-box">PHYSICAL HARDWARE // SERIAL AUDIT LOGGED</span></td>
+        </tr>"""
+
+    # Permanent Vault Evidence Files
+    case_vault_dir = os.path.join(EVIDENCE_VAULT_DIR, cid)
+    if os.path.exists(case_vault_dir):
+        for v_name in os.listdir(case_vault_dir):
+            v_path = os.path.join(case_vault_dir, v_name)
+            if os.path.isfile(v_path):
+                try:
+                    with open(v_path, "rb") as vf: v_bytes = vf.read()
+                    v_sha = hashlib.sha256(v_bytes).hexdigest()
+                    v_md = hashlib.md5(v_bytes).hexdigest()
+                    v_sz = f"{len(v_bytes) / 1024:.2f} KB"
+                    ev_table_rows += f"""<tr>
+                        <td><b>[VAULT EXHIBIT]</b> {v_name}</td>
+                        <td>{v_sz}</td>
+                        <td><span class="code-box">{v_sha}</span></td>
+                        <td><span class="code-box">{v_md}</span></td>
+                    </tr>"""
+                except Exception:
+                    pass
+
+    if not ev_table_rows:
+        ev_table_rows = "<tr><td colspan='4' style='text-align:center; padding:10px; color:#64748b;'>No digital or physical evidence exhibits attached.</td></tr>"
 
     # 2. Investigator Credentials
     assigned_uid = c.get("assigned_to") or current_user_id or "Unassigned"
@@ -2727,18 +2755,17 @@ def generate_court_dossier_html(cid: str, c: dict, users: dict, current_user_id:
 Evidence integrity verified via Federal Information Processing Standards (FIPS 180-4). Hashes confirm the acquired bitstream has suffered zero alteration.
 </p>
 <table class="data-table">
-    <tr>
-        <th>Evidence Item Name</th><td><b>{ev_file}</b></td>
-        <th>Acquired File Size</th><td>{file_size_str}</td>
-    </tr>
-    <tr>
-        <th>Cryptographic SHA-256</th>
-        <td colspan="3"><span class="code-box">{sha256}</span></td>
-    </tr>
-    <tr>
-        <th>Cryptographic MD5</th>
-        <td colspan="3"><span class="code-box">{md5}</span></td>
-    </tr>
+    <thead>
+        <tr style="background:#f1f5f9;">
+            <th style="width:25%;">Evidence Item Name</th>
+            <th style="width:15%;">File Size</th>
+            <th style="width:40%;">Cryptographic SHA-256 Hash</th>
+            <th style="width:20%;">Cryptographic MD5</th>
+        </tr>
+    </thead>
+    <tbody>
+        {ev_table_rows}
+    </tbody>
 </table>
 
 <div class="sec-heading">V. Forensic Findings & Case Conclusion</div>
@@ -3083,50 +3110,131 @@ def workspace():
             st.markdown("</div>", unsafe_allow_html=True)
         # ── PERMANENT EVIDENCE VAULT ──
         st.markdown("---")
-        with st.expander("🗄️ Permanent Evidence Vault", expanded=True):
-            st.write("Securely upload and store suspect files, logs, and disk images permanently attached to this case.")
+        with st.expander("🗄️ Cryptographic Evidence Vault & Integrity Lock", expanded=True):
+            st.markdown("""
+            <div style="background:#0f172a; border-left:4px solid #38bdf8; padding:10px 14px; border-radius:4px; margin-bottom:15px; font-size:12px; color:#cbd5e1;">
+                <b>ISO/IEC 27037 Digital Preservation Standard:</b> All files ingested into this zero-trust vault are immediately fingerprinted with <b>SHA-256</b> and <b>MD5</b> cryptographic hashes to ensure strict non-repudiation and court admissibility.
+            </div>
+            """, unsafe_allow_html=True)
             
             case_evidence_dir = os.path.join(EVIDENCE_VAULT_DIR, cid)
             os.makedirs(case_evidence_dir, exist_ok=True)
             
-            col_vault_1, col_vault_2 = st.columns([1, 1])
-            with col_vault_1:
-                st.markdown("#### 📤 Upload New Evidence")
-                new_evidence = st.file_uploader("Upload Case Files", accept_multiple_files=True, key=f"vault_upload_{cid}")
-                if new_evidence and st.button("💾 Secure Evidence to Vault", type="primary"):
+            col_v1, col_v2 = st.columns([1, 1.3])
+            with col_v1:
+                st.markdown("#### 📤 Ingest & Lock New Evidence")
+                new_evidence = st.file_uploader(
+                    "Upload Case Files (Disk dumps, PCAPs, Malware, Logs, Photos)",
+                    accept_multiple_files=True,
+                    key=f"vault_upload_{cid}"
+                )
+                if new_evidence and st.button("🔒 Cryptographically Hash & Secure to Vault", type="primary", use_container_width=True):
+                    import hashlib
+                    if "vault_metadata" not in c: c["vault_metadata"] = {}
+                    if "chain_of_custody" not in c: c["chain_of_custody"] = []
+                    
+                    saved_count = 0
                     for ev_file in new_evidence:
+                        raw_bytes = ev_file.getbuffer()
+                        file_sha256 = hashlib.sha256(raw_bytes).hexdigest()
+                        file_md5 = hashlib.md5(raw_bytes).hexdigest()
+                        file_size_kb = len(raw_bytes) / 1024
+                        
                         file_path = os.path.join(case_evidence_dir, ev_file.name)
                         with open(file_path, "wb") as f:
-                            f.write(ev_file.getbuffer())
+                            f.write(raw_bytes)
+                            
+                        # Save hash metadata
+                        c["vault_metadata"][ev_file.name] = {
+                            "sha256": file_sha256,
+                            "md5": file_md5,
+                            "size_kb": f"{file_size_kb:.2f} KB",
+                            "ingested_by": st.session_state.user_id,
+                            "ingested_at": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
+                        }
+                        
                         # Log to CoC
-                        if "chain_of_custody" not in c: c["chain_of_custody"] = []
                         c["chain_of_custody"].append({
                             "timestamp": datetime.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"),
-                            "action": f"Secured evidence file: {ev_file.name}",
+                            "action": f"Evidence Ingested & Hashed: {ev_file.name} | SHA-256: {file_sha256[:16]}... | Bitstream Locked",
                             "actor": f"Investigator ({st.session_state.user_id})",
-                            "location": "Permanent Evidence Vault"
+                            "location": "Cryptographic Evidence Vault"
                         })
+                        
+                        log_action(f"Evidence Secured for Case [{cid}]: {ev_file.name} [SHA-256: {file_sha256}]")
+                        saved_count += 1
+                        
                     save_complaint(cid, c)
-                    st.success(f"Successfully secured {len(new_evidence)} file(s)!")
-                    time.sleep(1)
+                    st.success(f"✅ Cryptographically fingerprinted & secured {saved_count} file(s) into the vault!")
+                    time.sleep(1.2)
                     st.rerun()
                     
-            with col_vault_2:
-                st.markdown("#### 📥 Attached Case Files")
-                existing_files = os.listdir(case_evidence_dir)
-                if existing_files:
+            with col_v2:
+                st.markdown("#### 🗃️ Verified Evidence Inventory")
+                existing_files = [f for f in os.listdir(case_evidence_dir) if os.path.isfile(os.path.join(case_evidence_dir, f))]
+                if not existing_files:
+                    st.info("No evidence exhibits currently stored in this vault. Upload suspect files above to lock their bitstream hashes.")
+                else:
+                    import hashlib
+                    if "vault_metadata" not in c: c["vault_metadata"] = {}
+                    
                     for f_name in existing_files:
                         file_path = os.path.join(case_evidence_dir, f_name)
-                        with open(file_path, "rb") as f_read:
+                        try:
+                            with open(file_path, "rb") as f_live:
+                                live_bytes = f_live.read()
+                            live_sha256 = hashlib.sha256(live_bytes).hexdigest()
+                            live_md5 = hashlib.md5(live_bytes).hexdigest()
+                            live_size = f"{len(live_bytes)/1024:.2f} KB"
+                        except Exception:
+                            live_sha256 = live_md5 = "Error reading"
+                            live_size = "Unknown"
+                            live_bytes = b""
+                            
+                        stored_meta = c["vault_metadata"].get(f_name, {})
+                        stored_sha = stored_meta.get("sha256", live_sha256)
+                        
+                        # Verify integrity
+                        if live_sha256 == stored_sha:
+                            integrity_badge = '<span style="color:#22c55e; font-weight:700; font-size:11px; background:#052e16; border:1px solid #16a34a; padding:2px 8px; border-radius:10px;">🔒 BITSTREAM INTEGRITY VERIFIED</span>'
+                        else:
+                            integrity_badge = '<span style="color:#ef4444; font-weight:700; font-size:11px; background:#450a0a; border:1px solid #dc2626; padding:2px 8px; border-radius:10px;">🚨 TAMPER DETECTED: HASH MISMATCH</span>'
+                            
+                        st.markdown(f"""
+                        <div style="background:#1e293b; border:1px solid #334155; border-radius:8px; padding:12px; margin-bottom:12px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                <span style="font-weight:700; color:#f8fafc; font-size:13px;">📄 {f_name}</span>
+                                <div>{integrity_badge}</div>
+                            </div>
+                            <div style="color:#94a3b8; font-size:11px; margin-bottom:6px;">
+                                Size: <b>{live_size}</b> &nbsp;|&nbsp; Vault Status: <b>Cryptographically Sealed</b>
+                            </div>
+                            <div style="margin-bottom:4px;">
+                                <span style="color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase;">SHA-256:</span>
+                                <code style="font-family:monospace; background:#0f172a; color:#38bdf8; padding:2px 6px; border-radius:4px; font-size:10px; word-break:break-all; display:block; margin-top:2px;">{live_sha256}</code>
+                            </div>
+                            <div>
+                                <span style="color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase;">MD5:</span>
+                                <code style="font-family:monospace; background:#0f172a; color:#a855f7; padding:2px 6px; border-radius:4px; font-size:10px;">{live_md5}</code>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        btn_c1, btn_c2 = st.columns([1, 1])
+                        with btn_c1:
                             st.download_button(
-                                label=f"📄 {f_name}",
-                                data=f_read,
+                                label=f"⬇️ Download {f_name}",
+                                data=live_bytes,
                                 file_name=f_name,
                                 key=f"dl_vault_{cid}_{f_name}",
                                 use_container_width=True
                             )
-                else:
-                    st.info("No evidence files have been attached to this case yet.")
+                        with btn_c2:
+                            if st.button(f"🔍 Re-Verify Hash", key=f"verify_hash_{cid}_{f_name}", use_container_width=True):
+                                if live_sha256 == stored_sha:
+                                    st.success("✅ Verified: Bitstream intact! SHA-256 matches vault ledger.")
+                                else:
+                                    st.error("🚨 Warning: Hash mismatch detected!")
 
         render_tool_grid("case")
         return

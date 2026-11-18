@@ -134,7 +134,9 @@ VIRUSTOTAL_API_KEY = "e16b303c571b8a4d9e73d40eaafc9c4e26551146d5d799f6329d206f68
 # ── Initialize Firebase ────────────────────────────────────────────────────────
 db = None
 if FIREBASE_INSTALLED:
-    if not firebase_admin._apps:
+    try:
+        firebase_admin.get_app()
+    except ValueError:
         try:
             if "firebase" in st.secrets:
                 import json
@@ -150,9 +152,15 @@ if FIREBASE_INSTALLED:
                 cred = credentials.Certificate(FIREBASE_KEY)
                 firebase_admin.initialize_app(cred)
         except Exception as e:
-            st.error(f"Firebase Init Error: {e}")
-    if firebase_admin._apps:
+            if "already exists" not in str(e).lower():
+                st.error(f"Firebase Init Error: {e}")
+    except Exception:
+        pass
+
+    try:
         db = firestore.client()
+    except Exception:
+        db = None
 
 # ── Global CSS ─────────────────────────────────────────────────────────────────
 st.markdown("""
